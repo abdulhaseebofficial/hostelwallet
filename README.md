@@ -374,6 +374,46 @@ picks that looked nice:
 
 ## Deployment
 
+### Both halves on Vercel (recommended)
+
+`vercel.json` in the repo root declares the two services and routes between
+them, which is what Vercel means by *"vercel.json required to deploy projects
+with multiple services"*:
+
+```
+/api/*  ->  backend service   (Express)
+/*      ->  frontend service  (Vite SPA)
+```
+
+Because both are served from **one origin**, no `VITE_API_URL` is needed — the
+client already defaults to `/api` — and the httpOnly refresh cookie works with
+no cross-site cookie configuration at all.
+
+Set these in **Vercel → Settings → Environment Variables**, scoped to the
+`backend` service:
+
+| Variable | Value |
+|---|---|
+| `MONGO_URI` | Your Atlas connection string |
+| `JWT_ACCESS_SECRET` | `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
+| `JWT_REFRESH_SECRET` | Same command again — it must **differ** from the access secret |
+| `NODE_ENV` | `production` |
+| `CLIENT_URL` | Your deployment URL, e.g. `https://hostelwallet.vercel.app` |
+| `ANTHROPIC_API_KEY` | Optional; without it the built-in advisor answers |
+
+The API refuses to boot on a missing or weak signing key, so a deploy that
+fails at start-up with *"Refusing to start, the configuration is unsafe"* is
+telling you one of the three required variables above is not set.
+
+> **The cron jobs are the one caveat.** Recurring expenses and the daily alert
+> sweep are scheduled in-process with `node-cron`, which needs a process that
+> is always awake. On a service that sleeps when idle they will not fire
+> reliably. The data is never wrong as a result — a recurring expense is
+> created when the job next runs — but if you need them punctual, drive
+> `POST /api/notifications/check` from an external scheduler instead.
+
+### Split across two hosts
+
 **Frontend → Vercel or Netlify**
 - Build command `npm run build`, output directory `dist`, root `frontend`
 - Set `VITE_API_URL` to the deployed API URL, e.g.

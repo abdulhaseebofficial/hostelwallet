@@ -76,9 +76,21 @@ export default {
       },
 
       boxShadow: {
-        // Surfaces are separated by a hairline border, not a drop shadow.
+        /**
+         * A four-step elevation scale. Every shadow is tinted with the page's
+         * own warm ink (38 36 33) rather than pure black - a grey shadow on a
+         * cream page reads as dirt, which is most of what makes a warm palette
+         * look cheap.
+         *
+         * Surfaces still carry a hairline border; the shadow only says how far
+         * off the page something sits.
+         */
         card: '0 1px 2px 0 rgb(38 36 33 / 0.04)',
+        raised: '0 1px 2px 0 rgb(38 36 33 / 0.05), 0 2px 6px -2px rgb(38 36 33 / 0.06)',
         lift: '0 2px 8px -2px rgb(38 36 33 / 0.10), 0 1px 3px -1px rgb(38 36 33 / 0.06)',
+        float: '0 12px 28px -8px rgb(38 36 33 / 0.16), 0 4px 10px -4px rgb(38 36 33 / 0.08)',
+        // For the terracotta panel and primary buttons: the accent's own hue.
+        brand: '0 6px 18px -6px rgb(192 95 60 / 0.45)',
       },
 
       keyframes: {
@@ -87,10 +99,16 @@ export default {
           from: { opacity: '0', transform: 'translateY(6px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
+        // Staggered entrance for a grid of cards - see .hw-enter.
+        'rise-in': {
+          from: { opacity: '0', transform: 'translateY(10px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 180ms ease-out',
         'slide-up': 'slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1)',
+        'rise-in': 'rise-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both',
       },
     },
   },
