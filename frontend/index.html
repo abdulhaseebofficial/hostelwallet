@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#c05f3c" />
+    <meta
+      name="description"
+      content="HostelWallet - track expenses, hit savings goals and get AI money advice built for university hostel students."
+    />
+    <link rel="icon" type="image/svg+xml" href="/wallet.svg" />
+    <title>HostelWallet - Smart money manager for hostel students</title>
+    <script>
+      // Apply the saved theme before first paint so the page never flashes white.
+      (function () {
+        try {
+          var stored = localStorage.getItem('hw-theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var dark = stored === 'dark' || (stored !== 'light' && prefersDark);
+          if (dark) document.documentElement.classList.add('dark');
+          // Paint the paper colour before React mounts so there is no flash.
+          document.documentElement.style.backgroundColor = dark ? '#1a1917' : '#f5f4ee';
+        } catch (e) {
+          /* private mode, ignore */
+        }
+      })();
+    </script>
+  </head>
+  <body class="h-full">
+    <div id="root" class="h-full"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "hostelwallet",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HostelWallet - AI-powered financial manager for university hostel students",
+  "scripts": {
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "dev": "concurrently -n api,web -c blue,magenta \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "dev:api": "npm run dev --prefix backend",
+    "dev:web": "npm run dev --prefix frontend",
+    "seed": "npm run seed --prefix backend",
+    "build": "npm run build --prefix frontend",
+    "start": "npm start --prefix backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  },
+  "engines": { "node": ">=18" },
+  "keywords": ["student", "budget", "expense-tracker", "claude", "mern"],
+  "license": "MIT"
+}

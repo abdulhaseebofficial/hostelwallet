@@ -1,0 +1,102 @@
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { useTheme } from '../../context/ThemeContext';
+import { CATEGORIES, CHART_INK } from '../../utils/constants';
+import { formatMoney } from '../../utils/format';
+import ChartTooltip from './ChartTooltip';
+import EmptyState from '../ui/EmptyState';
+import { TrendingUp } from 'lucide-react';
+
+/**
+ * Daily spending through the month. One series, so no legend box is needed -
+ * the card title names it. A dashed reference line marks the daily average,
+ * which is what makes a spike readable as a spike.
+ */
+export default function TrendChart({ data = [], currency = 'INR', average = 0, height = 240 }) {
+  const { isDark } = useTheme();
+  const ink = isDark ? CHART_INK.dark : CHART_INK.light;
+  const seriesColor = isDark ? CATEGORIES[0].dark : CATEGORIES[0].light;
+
+  const hasSpending = data.some((point) => point.amount > 0);
+  if (!data.length || !hasSpending) {
+    return (
+      <EmptyState
+        icon={TrendingUp}
+        title="No spending trend yet"
+        message="Log expenses on a few different days to see the shape of your month."
+      />
+    );
+  }
+
+  return (
+    <div style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+          <defs>
+            <linearGradient id="hw-trend-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={seriesColor} stopOpacity={0.28} />
+              <stop offset="100%" stopColor={seriesColor} stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+
+          <CartesianGrid stroke={ink.grid} strokeDasharray="3 3" vertical={false} />
+
+          <XAxis
+            dataKey="day"
+            tick={{ fill: ink.muted, fontSize: 11 }}
+            tickLine={false}
+            axisLine={{ stroke: ink.axis }}
+            interval="preserveStartEnd"
+            minTickGap={20}
+          />
+          <YAxis
+            tick={{ fill: ink.muted, fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+            width={52}
+            tickFormatter={(value) => formatMoney(value, currency, { compact: true })}
+          />
+
+          {average > 0 && (
+            <ReferenceLine
+              y={average}
+              stroke={ink.axis}
+              strokeDasharray="4 4"
+              label={{
+                value: `avg ${formatMoney(average, currency, { compact: true })}`,
+                position: 'insideTopRight',
+                fill: ink.muted,
+                fontSize: 10,
+              }}
+            />
+          )}
+
+          <Tooltip
+            cursor={{ stroke: ink.axis, strokeWidth: 1 }}
+            content={<ChartTooltip currency={currency} labelFormatter={(day) => `Day ${day}`} />}
+          />
+
+          <Area
+            type="monotone"
+            dataKey="amount"
+            name="Spent"
+            stroke={seriesColor}
+            strokeWidth={2}
+            fill="url(#hw-trend-fill)"
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 2, stroke: ink.surface }}
+            animationDuration={700}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}

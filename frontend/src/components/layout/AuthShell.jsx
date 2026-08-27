@@ -1,0 +1,75 @@
+import { Link } from 'react-router-dom';
+import { Wallet, PiggyBank, Sparkles, TrendingDown } from 'lucide-react';
+
+const HIGHLIGHTS = [
+  { icon: PiggyBank, title: 'Know where it goes', text: 'Mess, chai, rickshaw, mobile load - every rupee in one place.' },
+  { icon: Sparkles, title: 'AI money coach', text: 'Advice written for hostel life, from your own numbers.' },
+  { icon: TrendingDown, title: 'Stop the leaks', text: 'Budgets warn you before the month runs out, not after.' },
+];
+
+/**
+ * Split screen for the signed-out pages: the pitch on the left (desktop only),
+ * the form on the right.
+ */
+export default function AuthShell({ title, subtitle, children, footer }) {
+  return (
+    <div className="flex min-h-full">
+      <aside className="relative hidden w-1/2 flex-col justify-between bg-brand-600 p-10 text-white lg:flex">
+        <Link to="/" className="flex items-center gap-2.5">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
+            <Wallet className="h-5 w-5" />
+          </span>
+          <span className="text-lg font-extrabold tracking-tight">HostelWallet</span>
+        </Link>
+
+        <div className="max-w-md">
+          <h1 className="text-3xl font-extrabold leading-tight">
+            Make your pocket money last the whole month.
+          </h1>
+          <p className="mt-3 text-sm text-brand-100">
+            Built for hostel students in Pakistan, where the budget is small, the mess bill is fixed and the dhaba is
+            always open.
+          </p>
+
+          <ul className="mt-8 space-y-5">
+            {HIGHLIGHTS.map(({ icon: Icon, title: heading, text }) => (
+              <li key={heading} className="flex gap-3.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold">{heading}</p>
+                  <p className="mt-0.5 text-xs text-brand-100">{text}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="text-xs text-brand-100/90">
+          Your data stays yours. Export or delete everything from Settings, any time.
+        </p>
+      </aside>
+
+      <main className="flex w-full flex-col justify-center px-5 py-10 sm:px-10 lg:w-1/2">
+        <div className="mx-auto w-full max-w-sm">
+          <Link to="/" className="mb-8 flex items-center gap-2.5 lg:hidden">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white">
+              <Wallet className="h-5 w-5" />
+            </span>
+            <span className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+              HostelWallet
+            </span>
+          </Link>
+
+          <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">{title}</h2>
+          {subtitle && <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
+
+          <div className="mt-7">{children}</div>
+
+          {footer && <div className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">{footer}</div>}
+        </div>
+      </main>
+    </div>
+  );
+}
