@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Receipt } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Receipt, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
@@ -107,6 +107,17 @@ export default function Expenses() {
   const items = data ? data.items : [];
   const pagination = data ? data.pagination : null;
 
+  // True when the list is narrowed by anything the student chose, so an empty
+  // result can be explained rather than looking like lost data.
+  const filtered = Boolean(
+    filters.search ||
+      filters.category ||
+      filters.paymentMethod ||
+      filters.minAmount ||
+      filters.maxAmount ||
+      filters.preset !== 'month'
+  );
+
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -140,18 +151,27 @@ export default function Expenses() {
       ) : error ? (
         <EmptyState icon={Receipt} title="Could not load expenses" message={error} actionLabel="Retry" onAction={reload} />
       ) : items.length === 0 ? (
-        <EmptyState
-          icon={Receipt}
-          title="No expenses here"
-          message={
-            filters.search || filters.category
-              ? 'Nothing matches those filters. Try widening the date range.'
-              : 'Add your first expense and this page fills up fast.'
-          }
-          actionLabel="Add expense"
-          actionIcon={Plus}
-          onAction={openNew}
-        />
+        // When a filter is what emptied the list, the useful button is the one
+        // that puts the expenses back, not one that adds another.
+        filtered ? (
+          <EmptyState
+            icon={Receipt}
+            title="Nothing matches those filters"
+            message="Your expenses are still here. Widen the date range or clear the filters to see them."
+            actionLabel="Clear filters"
+            actionIcon={X}
+            onAction={() => setFilters(INITIAL_FILTERS)}
+          />
+        ) : (
+          <EmptyState
+            icon={Receipt}
+            title="No expenses yet"
+            message="Add your first expense and this page fills up fast."
+            actionLabel="Add expense"
+            actionIcon={Plus}
+            onAction={openNew}
+          />
+        )
       ) : (
         <>
           <ul className="space-y-2">

@@ -149,3 +149,61 @@
   fill: currentColor;
   font-size: 12px;
 }
+
+/* ------------------------------------------------------------------ *
+ * Accessibility and mobile ergonomics
+ * ------------------------------------------------------------------ */
+
+/**
+ * Respect the OS "reduce motion" setting. Vestibular disorders aside, a
+ * student on a cheap phone often turns this on to make the UI feel faster -
+ * honouring it costs nothing and the app still works exactly the same.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  /* Keyboard users get to the content without tabbing the whole nav first. */
+  .hw-skip-link {
+    @apply sr-only;
+  }
+  .hw-skip-link:focus {
+    @apply not-sr-only fixed left-4 top-4 z-[60] rounded-xl bg-brand-600 px-4 py-2.5;
+    @apply text-sm font-semibold text-white shadow-lift;
+  }
+
+  /* The raised "log an expense" button in the middle of the mobile tab bar. */
+  .hw-fab {
+    @apply flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white;
+    @apply shadow-lift ring-4 ring-canvas-card transition active:scale-95;
+    @apply hover:bg-brand-700 dark:ring-canvas-darkCard;
+  }
+
+  /* A removable "Category: Travel" pill in the filter bar. */
+  .hw-chip {
+    @apply inline-flex items-center gap-1 rounded-full bg-slate-100 py-1 pl-2.5 pr-1;
+    @apply text-xs font-medium text-slate-700;
+    @apply dark:bg-slate-800 dark:text-slate-200;
+  }
+  .hw-chip-remove {
+    @apply rounded-full p-0.5 text-slate-400 transition;
+    @apply hover:bg-slate-300 hover:text-slate-700;
+    @apply dark:hover:bg-slate-600 dark:hover:text-slate-100;
+  }
+}
+
+/**
+ * Phones with a home indicator (iPhone X and later) draw a bar over the
+ * bottom of the viewport. Without this the tab bar labels sit underneath it.
+ */
+.hw-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

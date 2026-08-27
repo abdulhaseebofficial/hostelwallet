@@ -37,18 +37,42 @@ export const presetRange = (key) => {
 /**
  * Search plus the date presets in one row, with the finer controls behind a
  * toggle so the common case stays a single tap.
+ *
+ * Anything currently narrowing the list is also summarised as a removable chip
+ * ABOVE that toggle. Filters that only exist inside a collapsed panel are
+ * filters a student cannot see and cannot undo - they just conclude their
+ * expenses have gone missing.
  */
 export default function ExpenseFilters({ filters, onChange, onReset, categories = [], resultCount }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const set = (patch) => onChange({ ...filters, ...patch, page: 1 });
-  const hasFilters =
-    filters.search ||
-    filters.category ||
-    filters.paymentMethod ||
-    filters.minAmount ||
-    filters.maxAmount ||
-    filters.preset !== 'month';
+
+  // One entry per narrowing filter, each able to clear just itself.
+  const activeChips = [
+    filters.search && { key: 'search', label: `Search: ${filters.search}`, clear: { search: '' } },
+    filters.category && { key: 'category', label: filters.category, clear: { category: '' } },
+    filters.paymentMethod && {
+      key: 'paymentMethod',
+      label: `Paid with ${filters.paymentMethod}`,
+      clear: { paymentMethod: '' },
+    },
+    filters.minAmount && { key: 'minAmount', label: `Min ${filters.minAmount}`, clear: { minAmount: '' } },
+    filters.maxAmount && { key: 'maxAmount', label: `Max ${filters.maxAmount}`, clear: { maxAmount: '' } },
+    filters.preset === 'custom' &&
+      (filters.from || filters.to) && {
+        key: 'range',
+        label: `${filters.from || 'start'} to ${filters.to || 'today'}`,
+        clear: { preset: 'month', ...presetRange('month') },
+      },
+  ].filter(Boolean);
+
+  // The date preset is always set to something, so it does not count as a chip
+  // unless it has been moved off the default.
+  const hasFilters = activeChips.length > 0 || filters.preset !== 'month';
+
+  // Everything the collapsed panel is hiding, so the toggle can carry a count.
+  const advancedCount = activeChips.filter((chip) => chip.key !== 'search').length;
 
   return (
     <div className="hw-card space-y-3 p-4">
@@ -61,17 +85,33 @@ export default function ExpenseFilters({ filters, onChange, onReset, categories 
             onChange={(event) => set({ search: event.target.value })}
             placeholder="Search description or category"
             aria-label="Search expenses"
-            className="hw-input pl-10"
+            className={cn('hw-input pl-10', filters.search && 'pr-10')}
           />
+          {filters.search && (
+            <button
+              type="button"
+              onClick={() => set({ search: '' })}
+              aria-label="Clear search"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         <Button
           variant={advancedOpen ? 'secondary' : 'outline'}
           icon={SlidersHorizontal}
           onClick={() => setAdvancedOpen((open) => !open)}
+          aria-expanded={advancedOpen}
           className="shrink-0"
         >
           Filters
+          {advancedCount > 0 && (
+            <span className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 text-[11px] font-bold text-white">
+              {advancedCount}
+            </span>
+          )}
         </Button>
       </div>
 
@@ -80,6 +120,7 @@ export default function ExpenseFilters({ filters, onChange, onReset, categories 
           <button
             key={preset.key}
             type="button"
+            aria-pressed={filters.preset === preset.key}
             onClick={() => set({ preset: preset.key, ...presetRange(preset.key) })}
             className={cn(
               'rounded-full px-3 py-1.5 text-xs font-semibold transition',
@@ -93,11 +134,40 @@ export default function ExpenseFilters({ filters, onChange, onReset, categories 
         ))}
 
         {resultCount !== undefined && (
-          <span className="ml-auto self-center text-xs text-slate-500 dark:text-slate-400">
+          <span
+            aria-live="polite"
+            className="ml-auto self-center text-xs text-slate-500 dark:text-slate-400"
+          >
             {resultCount} result{resultCount === 1 ? '' : 's'}
           </span>
         )}
       </div>
+
+      {activeChips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-200 pt-3 dark:border-slate-800">
+          <span className="text-xs text-slate-500 dark:text-slate-400">Filtered by</span>
+          {activeChips.map((chip) => (
+            <span key={chip.key} className="hw-chip">
+              <span className="max-w-40 truncate">{chip.label}</span>
+              <button
+                type="button"
+                onClick={() => set(chip.clear)}
+                aria-label={`Remove filter ${chip.label}`}
+                className="hw-chip-remove"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+          <button
+            type="button"
+            onClick={onReset}
+            className="ml-1 text-xs font-semibold text-brand-700 underline-offset-2 hover:underline dark:text-brand-400"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
 
       {advancedOpen && (
         <div className="grid gap-3 border-t border-slate-200 pt-3 sm:grid-cols-2 lg:grid-cols-4 dark:border-slate-800">

@@ -23,9 +23,15 @@ export const NAV_ITEMS = [
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
-/** Items shown in the mobile bottom bar - the five most used screens. */
+/**
+ * The mobile tab bar shows FOUR screens, not five: the middle slot is the
+ * raised "add expense" button. Logging a purchase is the thing a student does
+ * many times a day, and it should never cost a scroll to the top of a page.
+ * The two shown on each side are the most visited; everything else is one tap
+ * away in the drawer.
+ */
 export const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) =>
-  ['/dashboard', '/expenses', '/goals', '/advisor', '/reports'].includes(item.to)
+  ['/dashboard', '/expenses', '/goals', '/advisor'].includes(item.to)
 );
 
 function NavItems({ onNavigate }) {
@@ -38,8 +44,14 @@ function NavItems({ onNavigate }) {
           onClick={onNavigate}
           className={({ isActive }) => cn('hw-nav-item', isActive && 'hw-nav-item-active')}
         >
-          <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
-          {label}
+          {({ isActive }) => (
+            <>
+              <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+              {label}
+              {/* Announced by screen readers; "active" styling alone says nothing. */}
+              {isActive && <span className="sr-only">(current page)</span>}
+            </>
+          )}
         </NavLink>
       ))}
     </nav>
@@ -57,6 +69,15 @@ export default function Sidebar({ open, onClose }) {
       <aside className="hidden w-60 shrink-0 border-r border-slate-200 bg-canvas-card px-3 py-4 lg:block dark:border-slate-800 dark:bg-canvas-darkCard">
         <div className="sticky top-4">
           <NavItems />
+
+          {/* Shortcuts are worthless if nobody knows they exist. */}
+          <p className="mt-6 px-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            Press{' '}
+            <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-sans text-[11px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              N
+            </kbd>{' '}
+            anywhere to log an expense.
+          </p>
         </div>
       </aside>
 
@@ -64,7 +85,7 @@ export default function Sidebar({ open, onClose }) {
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-          <aside className="relative z-10 h-full w-64 animate-slide-up border-r border-slate-200 bg-canvas-card px-3 py-4 dark:border-slate-800 dark:bg-canvas-darkCard">
+          <aside className="relative z-10 h-full w-64 animate-slide-up overflow-y-auto border-r border-slate-200 bg-canvas-card px-3 py-4 dark:border-slate-800 dark:bg-canvas-darkCard">
             <div className="mb-4 flex items-center justify-between px-2">
               <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Menu</span>
               <button

@@ -5,8 +5,8 @@ import { z } from 'zod';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
-import { PAYMENT_METHODS, RECURRING_FREQUENCIES } from '../../utils/constants';
-import { currencySymbol, toInputDate } from '../../utils/format';
+import { PAYMENT_METHODS, RECURRING_FREQUENCIES, categoryColor, categoryEmoji } from '../../utils/constants';
+import { cn, currencySymbol, formatMoney, toInputDate } from '../../utils/format';
 
 // Mirrors the backend validators so the student is told about a bad value
 // before a request is even sent.
@@ -20,12 +20,20 @@ const schema = z.object({
   recurringFrequency: z.enum(['daily', 'weekly', 'monthly']).optional(),
 });
 
-export default function ExpenseForm({ expense, categories = [], currency = 'INR', onSubmit, onCancel, submitting }) {
+/**
+ * The amounts a hostel purchase actually lands on - a chai, a rickshaw share,
+ * a plate at the dhaba, a top-up. Tapping one beats typing on a phone keypad,
+ * and the field stays editable for everything else.
+ */
+const QUICK_AMOUNTS = [50, 100, 200, 500, 1000];
+
+export default function ExpenseForm({ expense, categories = [], currency = 'PKR', onSubmit, onCancel, submitting }) {
   const {
     register,
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
@@ -55,11 +63,28 @@ export default function ExpenseForm({ expense, categories = [], currency = 'INR'
     }
   }, [expense, reset]);
 
+  // The category list arrives from the API a moment after first paint. Only
+  // seed it when nothing is chosen yet, so it never overwrites a real choice.
+  const selectedCategory = watch('category');
+  useEffect(() => {
+    if (!selectedCategory && categories.length > 0) {
+      setValue('category', categories[0], { shouldValidate: false });
+    }
+  }, [categories, selectedCategory, setValue]);
+
   const isRecurring = watch('isRecurring');
+  const amount = watch('amount');
+
+  const bumpAmount = (value) => {
+    // Tapping twice adds up: 500 then 100 is 600, which is how a student
+    // totals a split bill in their head.
+    const current = Number(amount) || 0;
+    setValue('amount', current + value, { shouldValidate: true, shouldDirty: true });
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div>
         <Input
           label="Amount"
           type="number"
@@ -72,17 +97,74 @@ export default function ExpenseForm({ expense, categories = [], currency = 'INR'
           {...register('amount')}
         />
 
-        <Select
-          label="Category"
-          options={categories}
-          placeholder={categories.length ? undefined : 'Loading...'}
-          error={errors.category && errors.category.message}
-          {...register('category')}
-        />
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {QUICK_AMOUNTS.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => bumpAmount(value)}
+              className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              +{formatMoney(value, currency)}
+            </button>
+          ))}
+          {Number(amount) > 0 && (
+            <button
+              type="button"
+              onClick={() => setValue('amount', '', { shouldValidate: false })}
+              className="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
+
+      {/*
+        Categories are radio buttons dressed as chips rather than a <select>.
+        A dropdown on a phone is tap - scroll - tap; this is one tap, shows the
+        same emoji the list view uses, and keeps arrow-key navigation and
+        screen-reader semantics for free.
+      */}
+      <fieldset>
+        <legend className="hw-label">Category</legend>
+        <div className="flex flex-wrap gap-1.5">
+          {categories.map((name) => {
+            const active = selectedCategory === name;
+            return (
+              <label
+                key={name}
+                className={cn(
+                  'inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition',
+                  'focus-within:ring-2 focus-within:ring-brand-500/60 focus-within:ring-offset-2',
+                  active
+                    ? 'border-brand-500 bg-brand-50 text-brand-800 dark:border-brand-500 dark:bg-brand-500/15 dark:text-brand-200'
+                    : 'border-slate-200 bg-canvas-card text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-transparent dark:text-slate-300 dark:hover:bg-slate-800'
+                )}
+              >
+                <input type="radio" value={name} className="sr-only" {...register('category')} />
+                <span aria-hidden="true">{categoryEmoji(name)}</span>
+                {name}
+                {active && (
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: categoryColor(name) }}
+                    aria-hidden="true"
+                  />
+                )}
+              </label>
+            );
+          })}
+          {categories.length === 0 && (
+            <span className="text-xs text-slate-500 dark:text-slate-400">Loading categories...</span>
+          )}
+        </div>
+        {errors.category && <p className="hw-error">{errors.category.message}</p>}
+      </fieldset>
 
       <Input
         label="What was it for?"
+        hint="Optional, but future you will be glad you wrote it down."
         placeholder="e.g. Dhaba lunch with roommates"
         error={errors.description && errors.description.message}
         {...register('description')}
