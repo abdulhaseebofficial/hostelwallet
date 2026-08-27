@@ -27,7 +27,7 @@ dhaba outside the gate that never closes.
   Easypaisa / Bank Transfer / Card / Raast), date
 - **Recurring expenses** — the mess bill or hostel fee is entered once and added
   automatically every month
-- **Custom categories** on top of the eight built-in ones
+- **Custom categories** on top of the nine built-in ones
 - **Search and filter** by text, date range, category, payment method and amount,
   with pagination and a live total for whatever is filtered
 - **Income tracking** — pocket money, part-time work, scholarships
@@ -332,12 +332,14 @@ The system prompt, abbreviated:
 
 ## Charts and colour
 
-The eight category colours are a **validated categorical palette**, not a set of
+The nine category colours are a **validated categorical palette**, not a set of
 picks that looked nice:
 
 - every adjacent pair clears colour-vision-deficiency and normal-vision separation
   thresholds in **both** light and dark mode, measured against this app's actual
-  surfaces (white and slate-900);
+  surfaces (warm paper and warm charcoal);
+- the ninth slot (Personal Care) was added later and the whole set re-validated;
+  it introduces no new worst pair in either mode;
 - light and dark are two *selected* steppings of the same eight hues, not an
   automatic flip;
 - a colour belongs to a **category**, never to a rank, so filtering or re-sorting

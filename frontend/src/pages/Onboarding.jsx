@@ -165,7 +165,7 @@ export default function Onboarding() {
 
             <Input
               label="Hostel name"
-              placeholder="e.g. Iqbal Hostel, Block C"
+              placeholder="e.g. Hostel Block C"
               value={form.hostelName}
               onChange={(event) => set({ hostelName: event.target.value })}
             />

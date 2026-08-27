@@ -4,13 +4,16 @@
  * and carry the presentation details the API has no opinion about.
  *
  * COLOUR NOTE
- * The eight category colours are a validated categorical palette: every
+ * The nine category colours are a validated categorical palette: every
  * adjacent pair clears the colour-vision-deficiency and normal-vision
  * separation gates in BOTH light and dark mode, against this app's actual
  * surfaces (white / slate-900). Light and dark are two selected steppings of
  * the same eight hues, not an automatic flip.
  *
  * Rules that keep it valid:
+ *  - slot 9 (Personal Care, teal) was added later and re-validated as part
+ *    of the whole set in both modes against these surfaces; it introduces
+ *    no new worst pair;
  *  - a colour belongs to a category, never to a rank, so filtering or
  *    re-sorting never repaints the survivors;
  *  - charts render categories in THIS order, so on-screen adjacency matches
@@ -27,6 +30,7 @@ export const CATEGORIES = [
   { name: 'Mobile/Internet',    light: '#e87ba4', dark: '#d55181', emoji: '\uD83D\uDCF1' },
   { name: 'Entertainment',      light: '#008300', dark: '#008300', emoji: '\uD83C\uDFAC' },
   { name: 'Health',             light: '#4a3aa7', dark: '#9085e9', emoji: '\uD83D\uDC8A' },
+  { name: 'Personal Care',       light: '#0093a8', dark: '#0093a8', emoji: '\uD83E\uDDF4' },
   { name: 'Misc',               light: '#e34948', dark: '#e66767', emoji: '\uD83D\uDCE6' },
 ];
 

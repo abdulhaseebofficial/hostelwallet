@@ -12,6 +12,9 @@ const DEFAULT_CATEGORIES = [
   'Mobile/Internet',
   'Entertainment',
   'Health',
+  // Covers what every hostel student spends on regardless of who they are:
+  // salon or barber, toiletries, laundry supplies, tailoring, skincare.
+  'Personal Care',
   'Misc',
 ];
 
@@ -37,14 +40,15 @@ const NOTIFICATION_TYPES = ['overspend', 'goal_deadline', 'log_reminder', 'bill_
 
 // A sensible starting split used when the AI is unavailable (percent of income).
 const FALLBACK_BUDGET_SPLIT = {
-  'Mess/Food': 0.3,
+  'Mess/Food': 0.28,
   'Rent/Hostel Fee': 0.28,
-  'Books & Stationery': 0.08,
-  Travel: 0.08,
+  'Books & Stationery': 0.07,
+  Travel: 0.07,
   'Mobile/Internet': 0.05,
-  Entertainment: 0.1,
+  Entertainment: 0.08,
   Health: 0.04,
-  Misc: 0.1,
+  'Personal Care': 0.05,
+  Misc: 0.08,
 };
 
 module.exports = {

@@ -31,7 +31,8 @@ const PATTERN = [
   ['Books & Stationery', 150, 1200, 2, ['Photocopies of notes', 'Lab file and register', 'Used book from a senior']],
   ['Entertainment', 300, 1000, 3, ['Cricket match with friends', 'Cinema ticket', 'Birthday treat', 'Game top-up']],
   ['Health', 250, 1500, 1, ['Medicines from the pharmacy', 'Doctor visit']],
-  ['Misc', 150, 1000, 3, ['Laundry', 'Haircut', 'Toiletries', 'Printouts']],
+  ['Personal Care', 200, 1200, 2, ['Salon visit', 'Barber', 'Toiletries and skincare', 'Tailoring']],
+  ['Misc', 150, 1000, 2, ['Laundry', 'Printouts', 'Gift for a friend', 'Hostel deposit']],
 ];
 
 const rand = (min, max) => Math.round(min + Math.random() * (max - min));
@@ -89,7 +90,7 @@ const run = async () => {
     monthlyIncome: 28000,
     currency: 'PKR',
     university: 'University of the Punjab, Lahore',
-    hostelName: 'Iqbal Hostel, Block C',
+    hostelName: 'University Hostel, Block C',
     onboardingCompleted: true,
   });
 
@@ -175,6 +176,7 @@ const run = async () => {
       ['Mobile/Internet', 1500],
       ['Entertainment', 1500],
       ['Health', 1200],
+      ['Personal Care', 1200],
       ['Misc', 1500],
     ].map(([category, limit]) => ({
       userId: user._id,
