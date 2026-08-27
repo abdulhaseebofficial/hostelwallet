@@ -29,6 +29,20 @@ const aiLimiter = rateLimit({
   skip: () => process.env.NODE_ENV === 'test',
 });
 
+/**
+ * Feedback writes a row and attempts an e-mail, so it is worth more to a
+ * spammer than a read: 10 submissions per hour per authenticated user.
+ */
+const feedbackLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.user ? String(req.user._id) : req.ip),
+  message: message('That is a lot of feedback for one hour. Please try again later.'),
+  skip: () => process.env.NODE_ENV === 'test',
+});
+
 /** Broad safety net for the rest of the API. */
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -39,4 +53,4 @@ const globalLimiter = rateLimit({
   skip: () => process.env.NODE_ENV === 'test',
 });
 
-module.exports = { authLimiter, aiLimiter, globalLimiter };
+module.exports = { authLimiter, aiLimiter, feedbackLimiter, globalLimiter };

@@ -51,6 +51,19 @@ const FALLBACK_BUDGET_SPLIT = {
   Misc: 0.08,
 };
 
+/**
+ * Who the app is by, and where feedback goes. Kept here so the address and
+ * profile live in exactly one place on the server.
+ */
+const DEVELOPER = {
+  name: 'Abdul Haseeb',
+  email: 'abdul.haseeb.kashmiri@outlook.com',
+  linkedin: 'https://www.linkedin.com/in/abdulhaseebkashmiri/',
+};
+
+/** What a piece of feedback is about. */
+const FEEDBACK_TYPES = ['General', 'Bug', 'Feature request', 'Design', 'Praise'];
+
 module.exports = {
   DEFAULT_CATEGORIES,
   PAYMENT_METHODS,
@@ -59,4 +72,6 @@ module.exports = {
   CURRENCIES,
   NOTIFICATION_TYPES,
   FALLBACK_BUDGET_SPLIT,
+  DEVELOPER,
+  FEEDBACK_TYPES,
 };

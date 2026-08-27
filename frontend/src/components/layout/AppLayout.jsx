@@ -6,6 +6,7 @@ import Sidebar, { MOBILE_NAV_ITEMS } from './Sidebar';
 import Footer from './Footer';
 import Modal from '../ui/Modal';
 import ExpenseForm from '../expenses/ExpenseForm';
+import FeedbackModal from '../feedback/FeedbackModal';
 import useCategories from '../../hooks/useCategories';
 import useMutation from '../../hooks/useMutation';
 import { notifyDataChanged } from '../../hooks/useAsync';
@@ -49,8 +50,11 @@ function QuickAddForm({ onDone, onCancel }) {
 export default function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const closeQuickAdd = useCallback(() => setQuickAddOpen(false), []);
+  const openFeedback = useCallback(() => setFeedbackOpen(true), []);
+  const closeFeedback = useCallback(() => setFeedbackOpen(false), []);
 
   // "N" for a new expense, from anywhere - but never while the student is
   // typing into a field, or the letter would vanish into a dialog.
@@ -78,7 +82,7 @@ export default function AppLayout() {
         Skip to main content
       </a>
 
-      <Navbar onOpenMenu={() => setMenuOpen(true)} />
+      <Navbar onOpenMenu={() => setMenuOpen(true)} onOpenFeedback={openFeedback} />
 
       <div className="flex flex-1">
         <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
@@ -89,7 +93,7 @@ export default function AppLayout() {
             <Outlet />
           </div>
           <div className="hidden lg:block">
-            <Footer />
+            <Footer onOpenFeedback={openFeedback} />
           </div>
         </main>
       </div>
@@ -131,6 +135,9 @@ export default function AppLayout() {
       >
         <QuickAddForm onDone={closeQuickAdd} onCancel={closeQuickAdd} />
       </Modal>
+
+      {/* One instance for the whole shell, opened from the navbar or the footer. */}
+      <FeedbackModal open={feedbackOpen} onClose={closeFeedback} />
     </div>
   );
 }

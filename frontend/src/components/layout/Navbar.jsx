@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, Moon, Sun, LogOut, User, ChevronDown } from 'lucide-react';
+import { Menu, Moon, Sun, LogOut, User, ChevronDown, MessageSquarePlus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { initials } from '../../utils/format';
 import BrandMark from './BrandMark';
 import NotificationBell from './NotificationBell';
 
-export default function Navbar({ onOpenMenu }) {
+export default function Navbar({ onOpenMenu, onOpenFeedback }) {
   const { user, logout } = useAuth();
   const { isDark, toggle } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -77,6 +77,17 @@ export default function Navbar({ onOpenMenu }) {
                     <User className="h-4 w-4" />
                     Profile and settings
                   </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onOpenFeedback();
+                    }}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    <MessageSquarePlus className="h-4 w-4" />
+                    Send feedback
+                  </button>
                   <button
                     type="button"
                     onClick={handleLogout}

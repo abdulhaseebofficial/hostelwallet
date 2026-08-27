@@ -5,7 +5,13 @@
  */
 
 const { body, param, query } = require('express-validator');
-const { PAYMENT_METHODS, INCOME_SOURCES, RECURRING_FREQUENCIES, CURRENCIES } = require('../config/constants');
+const {
+  PAYMENT_METHODS,
+  INCOME_SOURCES,
+  RECURRING_FREQUENCIES,
+  CURRENCIES,
+  FEEDBACK_TYPES,
+} = require('../config/constants');
 
 const CURRENCY_CODES = CURRENCIES.map((c) => c.code);
 
@@ -235,6 +241,24 @@ const reportValidators = {
   ],
 };
 
+/* ------------------------------- feedback ---------------------------- */
+
+const feedbackValidators = {
+  create: [
+    body('message')
+      .exists({ checkFalsy: true })
+      .withMessage('Tell us what is on your mind')
+      .bail()
+      .isString()
+      .trim()
+      .isLength({ min: 5, max: 2000 })
+      .withMessage('Feedback must be 5-2000 characters'),
+    body('type').optional().isIn(FEEDBACK_TYPES).withMessage('Unknown feedback type'),
+    body('rating').optional({ nullable: true }).isInt({ min: 1, max: 5 }).toInt(),
+    body('page').optional().isString().trim().isLength({ max: 120 }),
+  ],
+};
+
 module.exports = {
   authValidators,
   profileValidators,
@@ -244,4 +268,5 @@ module.exports = {
   budgetValidators,
   aiValidators,
   reportValidators,
+  feedbackValidators,
 };

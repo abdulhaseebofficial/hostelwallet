@@ -100,6 +100,20 @@ export const GOAL_ICONS = [
 ];
 
 /**
+ * Who built this, and how to reach them. Mirrors DEVELOPER in the backend
+ * constants: this copy is for DISPLAY (footer links, the feedback dialog),
+ * the server's copy is the address feedback is actually delivered to.
+ */
+export const DEVELOPER = {
+  name: 'Abdul Haseeb',
+  email: 'abdul.haseeb.kashmiri@outlook.com',
+  linkedin: 'https://www.linkedin.com/in/abdulhaseebkashmiri/',
+};
+
+/** What a piece of feedback is about. Must match the backend enum. */
+export const FEEDBACK_TYPES = ['General', 'Bug', 'Feature request', 'Design', 'Praise'];
+
+/**
  * Budget traffic lights. These are STATUS colours, deliberately distinct from
  * the categorical slots, and they always ship with a text label so meaning is
  * never carried by colour alone.

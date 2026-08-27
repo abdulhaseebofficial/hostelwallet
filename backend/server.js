@@ -120,6 +120,7 @@ app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/ai', require('./routes/aiRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/feedback', require('./routes/feedbackRoutes'));
 
 app.use(notFound);
 app.use(errorHandler);

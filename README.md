@@ -64,6 +64,15 @@ reaches the browser.
   advisor answers instead and the response is flagged `aiPowered: false`. Nothing
   in the app breaks.
 
+### Feedback
+- **Send feedback** from the profile menu or the footer: an optional 1-5 rating,
+  a category (bug / feature request / design / praise) and a message
+- The note is stored first and e-mailed to the developer second, so nothing is
+  lost when SMTP is not configured
+- The page the student was on is attached automatically, so a bug report
+  arrives with context
+- Direct **LinkedIn** and **e-mail** links for anything too long for a form
+
 ### Everything else
 - JWT auth with access + refresh tokens, silent refresh, bcrypt password hashing
 - Forgot-password flow (emails the link, or logs it when SMTP is not configured)
@@ -196,6 +205,8 @@ isCompleted, completedAt, contributions[], createdAt`
 
 **ChatMessage** — `userId, role, content` *(the AI advisor conversation)*
 
+**Feedback** — `userId, type, rating, message, page, emailed, createdAt`
+
 ### One deliberate design decision
 
 `user.monthlyIncome` is the **planned** pocket money; the `Income` collection is
@@ -257,6 +268,13 @@ utility routes requires `Authorization: Bearer <accessToken>`.
 | POST | `/notifications/check` | Re-run the alert rules |
 | PATCH | `/notifications/:id/read`, `/notifications/read-all` | Mark read |
 | DELETE | `/notifications/:id`, `/notifications` | Remove one / clear all |
+
+### Feedback
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/feedback/meta` | Feedback types and how to reach the developer |
+| GET | `/feedback/mine` | What this student has already sent |
+| POST | `/feedback` | Send feedback *(10 per hour per user)* |
 
 ### AI
 | Method | Endpoint | Purpose |
