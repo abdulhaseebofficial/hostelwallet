@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import toast from 'react-hot-toast';
 import Navbar from './Navbar';
 import Sidebar, { MOBILE_NAV_ITEMS } from './Sidebar';
 import Footer from './Footer';
 import Modal from '../ui/Modal';
 import ExpenseForm from '../expenses/ExpenseForm';
 import useCategories from '../../hooks/useCategories';
+import useMutation from '../../hooks/useMutation';
 import { notifyDataChanged } from '../../hooks/useAsync';
 import { useAuth } from '../../context/AuthContext';
 import expenseService from '../../services/expenseService';
-import { getErrorMessage } from '../../services/api';
 import { cn } from '../../utils/format';
 
 /**
@@ -21,21 +20,16 @@ import { cn } from '../../utils/format';
 function QuickAddForm({ onDone, onCancel }) {
   const { currency } = useAuth();
   const { categories } = useCategories();
-  const [saving, setSaving] = useState(false);
+  const { saving, run } = useMutation();
 
-  const submit = async (values) => {
-    setSaving(true);
-    try {
-      await expenseService.create(values);
-      toast.success('Expense added');
-      notifyDataChanged();
-      onDone();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
+  const submit = (values) =>
+    run(() => expenseService.create(values), {
+      success: 'Expense added',
+      onDone: () => {
+        notifyDataChanged();
+        onDone();
+      },
+    });
 
   return (
     <ExpenseForm

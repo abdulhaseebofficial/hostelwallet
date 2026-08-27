@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AuthShell from '../components/layout/AuthShell';
-import Input from '../components/ui/Input';
+import PasswordInput from '../components/ui/PasswordInput';
 import Button from '../components/ui/Button';
 import authService from '../services/authService';
 import { useAuth } from '../context/AuthContext';
@@ -59,9 +59,8 @@ export default function ResetPassword() {
       }
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        <Input
+        <PasswordInput
           label="New password"
-          type="password"
           autoComplete="new-password"
           placeholder="At least 8 characters"
           hint="Must contain a letter and a number"
@@ -70,9 +69,8 @@ export default function ResetPassword() {
           {...register('password')}
         />
 
-        <Input
+        <PasswordInput
           label="Confirm new password"
-          type="password"
           autoComplete="new-password"
           placeholder="Type it again"
           error={errors.confirmPassword && errors.confirmPassword.message}

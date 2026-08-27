@@ -3,9 +3,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Trash2, Wallet } from 'lucide-react';
-import toast from 'react-hot-toast';
 import Card, { CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
@@ -14,9 +14,9 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import StatCard from '../components/dashboard/StatCard';
 import useAsync from '../hooks/useAsync';
+import useMutation from '../hooks/useMutation';
 import { useAuth } from '../context/AuthContext';
 import incomeService from '../services/incomeService';
-import { getErrorMessage } from '../services/api';
 import { INCOME_SOURCES } from '../utils/constants';
 import { currencySymbol, formatDate, formatMoney, toInputDate } from '../utils/format';
 
@@ -31,7 +31,7 @@ export default function Income() {
   const { user, currency } = useAuth();
   const [formOpen, setFormOpen] = useState(false);
   const [deleting, setDeleting] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const { saving, run } = useMutation();
 
   const load = useCallback(() => incomeService.list(), []);
   const { data, loading, error, reload } = useAsync(load, []);
@@ -46,53 +46,37 @@ export default function Income() {
     defaultValues: { amount: '', source: 'Pocket Money', note: '', date: toInputDate(new Date()) },
   });
 
-  const submit = async (values) => {
-    setSaving(true);
-    try {
-      await incomeService.create(values);
-      toast.success('Income added');
-      setFormOpen(false);
-      reset({ amount: '', source: 'Pocket Money', note: '', date: toInputDate(new Date()) });
-      reload();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
+  const submit = (values) =>
+    run(() => incomeService.create(values), {
+      success: 'Income added',
+      onDone: () => {
+        setFormOpen(false);
+        reset({ amount: '', source: 'Pocket Money', note: '', date: toInputDate(new Date()) });
+        reload();
+      },
+    });
 
-  const confirmDelete = async () => {
-    setSaving(true);
-    try {
-      await incomeService.remove(deleting._id);
-      toast.success('Income removed');
-      setDeleting(null);
-      reload();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
+  const confirmDelete = () =>
+    run(() => incomeService.remove(deleting._id), {
+      success: 'Income removed',
+      onDone: () => {
+        setDeleting(null);
+        reload();
+      },
+    });
 
   const items = data ? data.items : [];
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100">
-            Income
-          </h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Every rupee that comes in - pocket money, tuition work, scholarship.
-          </p>
-        </div>
-
+      <PageHeader
+        title="Income"
+        subtitle="Every rupee that comes in - pocket money, tuition work, scholarship."
+      >
         <Button icon={Plus} onClick={() => setFormOpen(true)}>
           Add income
         </Button>
-      </header>
+      </PageHeader>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <StatCard

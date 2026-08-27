@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Plus, Target, Trophy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import EmptyState from '../components/ui/EmptyState';
@@ -11,9 +12,9 @@ import GoalCard from '../components/goals/GoalCard';
 import GoalForm from '../components/goals/GoalForm';
 import ContributeModal from '../components/goals/ContributeModal';
 import useAsync from '../hooks/useAsync';
+import useMutation from '../hooks/useMutation';
 import { useAuth } from '../context/AuthContext';
 import goalService from '../services/goalService';
-import { getErrorMessage } from '../services/api';
 import { cn, formatMoney } from '../utils/format';
 
 const TABS = [
@@ -29,82 +30,59 @@ export default function Goals() {
   const [editing, setEditing] = useState(null);
   const [contributing, setContributing] = useState(null);
   const [deleting, setDeleting] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const { saving, run } = useMutation();
 
   const load = useCallback(() => goalService.list(tab), [tab]);
   const { data, loading, error, reload } = useAsync(load, [tab]);
 
-  const submit = async (values) => {
-    setSaving(true);
-    try {
-      const payload = { ...values, deadline: values.deadline || null };
-      if (editing) {
-        await goalService.update(editing._id, payload);
-        toast.success('Goal updated');
-      } else {
-        await goalService.create(payload);
-        toast.success('Goal created. Now go fund it!');
-      }
-      setFormOpen(false);
-      setEditing(null);
-      reload();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
+  const submit = (values) => {
+    const payload = { ...values, deadline: values.deadline || null };
+    return run(() => (editing ? goalService.update(editing._id, payload) : goalService.create(payload)), {
+      success: editing ? 'Goal updated' : 'Goal created. Now go fund it!',
+      onDone: () => {
+        setFormOpen(false);
+        setEditing(null);
+        reload();
+      },
+    });
   };
 
-  const contribute = async (amount) => {
-    setSaving(true);
-    try {
-      const result = await goalService.contribute(contributing._id, amount);
-      if (result.justCompleted) {
-        toast.success(`Goal complete! You saved the full amount for "${result.goal.title}"`, {
-          icon: '\uD83C\uDF89',
-          duration: 5000,
-        });
-      } else {
-        toast.success(amount > 0 ? 'Money added to your goal' : 'Money withdrawn');
-      }
-      setContributing(null);
-      reload();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
+  // Funding a goal is the one write with a result worth celebrating, so it
+  // raises its own toast instead of the standard one.
+  const contribute = (amount) =>
+    run(() => goalService.contribute(contributing._id, amount), {
+      onDone: (result) => {
+        if (result.justCompleted) {
+          toast.success(`Goal complete! You saved the full amount for "${result.goal.title}"`, {
+            icon: '\uD83C\uDF89',
+            duration: 5000,
+          });
+        } else {
+          toast.success(amount > 0 ? 'Money added to your goal' : 'Money withdrawn');
+        }
+        setContributing(null);
+        reload();
+      },
+    });
 
-  const confirmDelete = async () => {
-    setSaving(true);
-    try {
-      await goalService.remove(deleting._id);
-      toast.success('Goal deleted');
-      setDeleting(null);
-      reload();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
+  const confirmDelete = () =>
+    run(() => goalService.remove(deleting._id), {
+      success: 'Goal deleted',
+      onDone: () => {
+        setDeleting(null);
+        reload();
+      },
+    });
 
   const goals = data ? data.items : [];
   const summary = data ? data.summary : null;
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100">
-            Savings goals
-          </h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Money with a name attached is much harder to spend by accident.
-          </p>
-        </div>
-
+      <PageHeader
+        title="Savings goals"
+        subtitle="Money with a name attached is much harder to spend by accident."
+      >
         <Button
           icon={Plus}
           onClick={() => {
@@ -114,7 +92,7 @@ export default function Goals() {
         >
           New goal
         </Button>
-      </header>
+      </PageHeader>
 
       {summary && summary.count > 0 && (
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, Moon, Sun, LogOut, User, ChevronDown, Wallet } from 'lucide-react';
+import { Menu, Moon, Sun, LogOut, User, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { initials } from '../../utils/format';
+import BrandMark from './BrandMark';
 import NotificationBell from './NotificationBell';
 
 export default function Navbar({ onOpenMenu }) {
@@ -29,14 +30,7 @@ export default function Navbar({ onOpenMenu }) {
           <Menu className="h-5 w-5" />
         </button>
 
-        <Link to="/dashboard" className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <Wallet className="h-5 w-5" />
-          </span>
-          <span className="hidden text-base font-extrabold tracking-tight text-slate-900 sm:block dark:text-slate-100">
-            Hostel<span className="text-brand-600 dark:text-brand-400">Wallet</span>
-          </span>
-        </Link>
+        <BrandMark nameClassName="hidden sm:block" />
 
         <div className="ml-auto flex items-center gap-1">
           <button

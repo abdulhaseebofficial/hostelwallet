@@ -2,11 +2,15 @@ import { forwardRef } from 'react';
 import { cn } from '../../utils/format';
 
 /**
- * Text/number/date input with a label, optional prefix (currency symbol) and
- * an error slot. forwardRef so react-hook-form can register it.
+ * Text/number/date input with a label, an optional prefix (currency symbol),
+ * an optional suffix (a show-password toggle, a unit) and an error slot.
+ * forwardRef so react-hook-form can register it.
+ *
+ * The suffix sits inside the same relative wrapper as the input, so it stays
+ * centred on the field whatever the label, hint or error underneath is doing.
  */
 const Input = forwardRef(function Input(
-  { label, error, hint, prefix, className = '', id, ...props },
+  { label, error, hint, prefix, suffix, className = '', id, ...props },
   ref
 ) {
   const inputId = id || props.name;
@@ -28,11 +32,17 @@ const Input = forwardRef(function Input(
         <input
           id={inputId}
           ref={ref}
-          className={cn('hw-input', prefix && 'pl-9', error && 'border-danger focus:border-danger focus:ring-danger')}
+          className={cn(
+            'hw-input',
+            prefix && 'pl-9',
+            suffix && 'pr-10',
+            error && 'border-danger focus:border-danger focus:ring-danger'
+          )}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${inputId}-error` : undefined}
           {...props}
         />
+        {suffix && <span className="absolute right-2.5 top-1/2 -translate-y-1/2">{suffix}</span>}
       </div>
 
       {hint && !error && <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">{hint}</p>}

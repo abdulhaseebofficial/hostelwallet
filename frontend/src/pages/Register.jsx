@@ -1,12 +1,12 @@
-import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, UserPlus } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AuthShell from '../components/layout/AuthShell';
 import Input from '../components/ui/Input';
+import PasswordInput from '../components/ui/PasswordInput';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage, getFieldErrors } from '../services/api';
@@ -31,7 +31,6 @@ const schema = z
 export default function Register() {
   const { register: signUp } = useAuth();
   const navigate = useNavigate();
-  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -88,29 +87,16 @@ export default function Register() {
           {...register('email')}
         />
 
-        <div className="relative">
-          <Input
-            label="Password"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="new-password"
-            placeholder="At least 8 characters"
-            hint="Must contain a letter and a number"
-            error={errors.password && errors.password.message}
-            {...register('password')}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword((shown) => !shown)}
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
-            className="absolute right-3 top-[34px] text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-300"
-          >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
+        <PasswordInput
+          autoComplete="new-password"
+          placeholder="At least 8 characters"
+          hint="Must contain a letter and a number"
+          error={errors.password && errors.password.message}
+          {...register('password')}
+        />
 
-        <Input
+        <PasswordInput
           label="Confirm password"
-          type={showPassword ? 'text' : 'password'}
           autoComplete="new-password"
           placeholder="Type it again"
           error={errors.confirmPassword && errors.confirmPassword.message}

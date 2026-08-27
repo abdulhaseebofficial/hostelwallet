@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Receipt, X } from 'lucide-react';
-import toast from 'react-hot-toast';
 import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import EmptyState from '../components/ui/EmptyState';
@@ -12,9 +12,9 @@ import ExpenseFilters, { presetRange } from '../components/expenses/ExpenseFilte
 import useAsync from '../hooks/useAsync';
 import useDebounce from '../hooks/useDebounce';
 import useCategories from '../hooks/useCategories';
+import useMutation from '../hooks/useMutation';
 import { useAuth } from '../context/AuthContext';
 import expenseService from '../services/expenseService';
-import { getErrorMessage } from '../services/api';
 import { formatMoney } from '../utils/format';
 
 const INITIAL_FILTERS = {
@@ -37,7 +37,7 @@ export default function Expenses() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const { saving, run } = useMutation();
 
   // The search box types fast; the API should not.
   const debouncedSearch = useDebounce(filters.search, 400);
@@ -60,39 +60,24 @@ export default function Expenses() {
   const load = useCallback(() => expenseService.list(query), [query]);
   const { data, loading, error, reload } = useAsync(load, [query]);
 
-  const submit = async (values) => {
-    setSaving(true);
-    try {
-      if (editing) {
-        await expenseService.update(editing._id, values);
-        toast.success('Expense updated');
-      } else {
-        await expenseService.create(values);
-        toast.success('Expense added');
-      }
-      setFormOpen(false);
-      setEditing(null);
-      reload();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
+  const submit = (values) =>
+    run(() => (editing ? expenseService.update(editing._id, values) : expenseService.create(values)), {
+      success: editing ? 'Expense updated' : 'Expense added',
+      onDone: () => {
+        setFormOpen(false);
+        setEditing(null);
+        reload();
+      },
+    });
 
-  const confirmDelete = async () => {
-    setSaving(true);
-    try {
-      await expenseService.remove(deleting._id);
-      toast.success('Expense deleted');
-      setDeleting(null);
-      reload();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
+  const confirmDelete = () =>
+    run(() => expenseService.remove(deleting._id), {
+      success: 'Expense deleted',
+      onDone: () => {
+        setDeleting(null);
+        reload();
+      },
+    });
 
   const openNew = () => {
     setEditing(null);
@@ -120,23 +105,20 @@ export default function Expenses() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100">
-            Expenses
-          </h1>
-          {data && (
-            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-              {formatMoney(data.filteredTotal, currency)} across {pagination.total} transaction
-              {pagination.total === 1 ? '' : 's'}
-            </p>
-          )}
-        </div>
-
+      <PageHeader
+        title="Expenses"
+        subtitle={
+          data
+            ? `${formatMoney(data.filteredTotal, currency)} across ${pagination.total} transaction${
+                pagination.total === 1 ? '' : 's'
+              }`
+            : undefined
+        }
+      >
         <Button icon={Plus} onClick={openNew}>
           Add expense
         </Button>
-      </header>
+      </PageHeader>
 
       <ExpenseFilters
         filters={filters}

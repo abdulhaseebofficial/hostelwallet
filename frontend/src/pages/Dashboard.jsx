@@ -9,9 +9,9 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
 import Card, { CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 import Modal from '../components/ui/Modal';
 import { SkeletonStats, SkeletonCard } from '../components/ui/Skeleton';
 import StatCard from '../components/dashboard/StatCard';
@@ -25,10 +25,10 @@ import ExpenseForm from '../components/expenses/ExpenseForm';
 import EmptyState from '../components/ui/EmptyState';
 import useAsync from '../hooks/useAsync';
 import useCategories from '../hooks/useCategories';
+import useMutation from '../hooks/useMutation';
 import { useAuth } from '../context/AuthContext';
 import dashboardService from '../services/dashboardService';
 import expenseService from '../services/expenseService';
-import { getErrorMessage } from '../services/api';
 import { formatChange, formatMoney } from '../utils/format';
 
 export default function Dashboard() {
@@ -37,24 +37,19 @@ export default function Dashboard() {
   const { categories } = useCategories();
 
   const [addOpen, setAddOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const { saving, run } = useMutation();
 
   const load = useCallback(() => dashboardService.summary(), []);
   const { data, loading, error, reload } = useAsync(load, []);
 
-  const addExpense = async (values) => {
-    setSaving(true);
-    try {
-      await expenseService.create(values);
-      toast.success('Expense added');
-      setAddOpen(false);
-      reload();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
+  const addExpense = (values) =>
+    run(() => expenseService.create(values), {
+      success: 'Expense added',
+      onDone: () => {
+        setAddOpen(false);
+        reload();
+      },
+    });
 
   if (loading && !data) {
     return (
@@ -86,20 +81,16 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100">
-            Hey {firstName}
-          </h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            {monthLabel} &middot; {totals.daysLeftInMonth} day{totals.daysLeftInMonth === 1 ? '' : 's'} left in the month
-          </p>
-        </div>
-
+      <PageHeader
+        title={`Hey ${firstName}`}
+        subtitle={`${monthLabel} · ${totals.daysLeftInMonth} day${
+          totals.daysLeftInMonth === 1 ? '' : 's'
+        } left in the month`}
+      >
         <Button icon={Plus} onClick={() => setAddOpen(true)}>
           Add expense
         </Button>
-      </header>
+      </PageHeader>
 
       {/* Headline numbers */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

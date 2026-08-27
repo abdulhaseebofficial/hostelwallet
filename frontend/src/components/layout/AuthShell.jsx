@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { Wallet, PiggyBank, Sparkles, TrendingDown } from 'lucide-react';
+import { PiggyBank, Sparkles, TrendingDown } from 'lucide-react';
+import BrandMark from './BrandMark';
 
 const HIGHLIGHTS = [
   { icon: PiggyBank, title: 'Know where it goes', text: 'Mess, chai, rickshaw, mobile load - every rupee in one place.' },
@@ -15,12 +15,7 @@ export default function AuthShell({ title, subtitle, children, footer }) {
   return (
     <div className="flex min-h-full">
       <aside className="relative hidden w-1/2 flex-col justify-between bg-brand-600 p-10 text-white lg:flex">
-        <Link to="/" className="flex items-center gap-2.5">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-            <Wallet className="h-5 w-5" />
-          </span>
-          <span className="text-lg font-extrabold tracking-tight">HostelWallet</span>
-        </Link>
+        <BrandMark to="/" inverted />
 
         <div className="max-w-md">
           <h1 className="text-3xl font-extrabold leading-tight">
@@ -53,14 +48,7 @@ export default function AuthShell({ title, subtitle, children, footer }) {
 
       <main className="flex w-full flex-col justify-center px-5 py-10 sm:px-10 lg:w-1/2">
         <div className="mx-auto w-full max-w-sm">
-          <Link to="/" className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white">
-              <Wallet className="h-5 w-5" />
-            </span>
-            <span className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-              HostelWallet
-            </span>
-          </Link>
+          <BrandMark to="/" className="mb-8 lg:hidden" />
 
           <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">{title}</h2>
           {subtitle && <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}

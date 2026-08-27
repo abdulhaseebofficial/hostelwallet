@@ -3,6 +3,7 @@ import { PieChart as PieIcon, Sparkles, Wallet, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card, { CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
@@ -11,11 +12,11 @@ import { SkeletonCard } from '../components/ui/Skeleton';
 import StatCard from '../components/dashboard/StatCard';
 import BudgetRow from '../components/budget/BudgetRow';
 import useAsync from '../hooks/useAsync';
+import useMutation from '../hooks/useMutation';
 import useCategories from '../hooks/useCategories';
 import { useAuth } from '../context/AuthContext';
 import budgetService from '../services/budgetService';
 import aiService from '../services/aiService';
-import { getErrorMessage } from '../services/api';
 import { currencySymbol, formatMoney, monthLabel } from '../utils/format';
 
 const now = new Date();
@@ -28,67 +29,54 @@ export default function Budget() {
   const [editing, setEditing] = useState(null);
   const [limitValue, setLimitValue] = useState('');
   const [newCategory, setNewCategory] = useState('');
-  const [saving, setSaving] = useState(false);
-
   const [suggestion, setSuggestion] = useState(null);
-  const [suggesting, setSuggesting] = useState(false);
+
+  // Two independent in-flight flags: saving a limit must not grey out the
+  // "suggest a budget" button, and vice versa.
+  const { saving, run } = useMutation();
+  const { saving: suggesting, run: runSuggest } = useMutation();
 
   const load = useCallback(() => budgetService.list(period.month, period.year), [period]);
   const { data, loading, error, reload } = useAsync(load, [period]);
 
-  const saveLimit = async () => {
+  const saveLimit = () => {
     const limit = Number(limitValue);
     if (Number.isNaN(limit) || limit < 0) return toast.error('Enter a limit of 0 or more');
 
     const category = editing ? editing.category : newCategory;
     if (!category) return toast.error('Pick a category');
 
-    setSaving(true);
-    try {
-      await budgetService.set({ category, limit, month: period.month, year: period.year });
-      toast.success(`Budget set for ${category}`);
-      setEditing(null);
-      setNewCategory('');
-      setLimitValue('');
-      reload();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-    return undefined;
+    return run(() => budgetService.set({ category, limit, month: period.month, year: period.year }), {
+      success: `Budget set for ${category}`,
+      onDone: () => {
+        setEditing(null);
+        setNewCategory('');
+        setLimitValue('');
+        reload();
+      },
+    });
   };
 
   /** Ask Claude for a whole plan; nothing is saved until "apply" is pressed. */
-  const askAi = async () => {
-    setSuggesting(true);
-    try {
-      const result = await aiService.suggestBudget(period.month, period.year);
-      setSuggestion(result);
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSuggesting(false);
-    }
-  };
+  const askAi = () =>
+    runSuggest(() => aiService.suggestBudget(period.month, period.year), { onDone: setSuggestion });
 
-  const applySuggestion = async () => {
-    setSaving(true);
-    try {
-      await budgetService.bulkSet(
-        suggestion.categories.map((row) => ({ category: row.category, limit: row.limit })),
-        period.month,
-        period.year
-      );
-      toast.success('Budget plan applied');
-      setSuggestion(null);
-      reload();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
+  const applySuggestion = () =>
+    run(
+      () =>
+        budgetService.bulkSet(
+          suggestion.categories.map((row) => ({ category: row.category, limit: row.limit })),
+          period.month,
+          period.year
+        ),
+      {
+        success: 'Budget plan applied',
+        onDone: () => {
+          setSuggestion(null);
+          reload();
+        },
+      }
+    );
 
   const items = data ? data.items : [];
   const totals = data ? data.totals : null;
@@ -96,20 +84,17 @@ export default function Budget() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100">
-            Budget
-          </h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Limits for {monthLabel(period.month, period.year)}. Green is fine, amber is a warning, red means stop.
-          </p>
-        </div>
-
+      <PageHeader
+        title="Budget"
+        subtitle={`Limits for ${monthLabel(
+          period.month,
+          period.year
+        )}. Green is fine, amber is a warning, red means stop.`}
+      >
         <Button icon={Sparkles} variant="secondary" loading={suggesting} onClick={askAi}>
           Suggest a budget
         </Button>
-      </header>
+      </PageHeader>
 
       {totals && (
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

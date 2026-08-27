@@ -1,12 +1,12 @@
-import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AuthShell from '../components/layout/AuthShell';
 import Input from '../components/ui/Input';
+import PasswordInput from '../components/ui/PasswordInput';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../services/api';
@@ -20,7 +20,6 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -71,24 +70,12 @@ export default function Login() {
         />
 
         <div>
-          <div className="relative">
-            <Input
-              label="Password"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              placeholder="Your password"
-              error={errors.password && errors.password.message}
-              {...register('password')}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((shown) => !shown)}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-              className="absolute right-3 top-[34px] text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-300"
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
+          <PasswordInput
+            autoComplete="current-password"
+            placeholder="Your password"
+            error={errors.password && errors.password.message}
+            {...register('password')}
+          />
 
           <div className="mt-2 text-right">
             <Link

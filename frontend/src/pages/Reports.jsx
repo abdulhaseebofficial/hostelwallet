@@ -3,6 +3,7 @@ import { BarChart3, Download, FileText, PieChart as PieIcon, Table2, TrendingUp 
 import toast from 'react-hot-toast';
 import Card, { CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 import Select from '../components/ui/Select';
 import EmptyState from '../components/ui/EmptyState';
 import { SkeletonCard, SkeletonStats } from '../components/ui/Skeleton';
@@ -44,16 +45,7 @@ export default function Reports() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100">
-            Reports
-          </h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            The whole month in one place, ready to download.
-          </p>
-        </div>
-
+      <PageHeader title="Reports" subtitle="The whole month in one place, ready to download.">
         <div className="flex flex-wrap items-end gap-2">
           <Select
             options={MONTH_NAMES.map((name, index) => ({ value: index + 1, label: name }))}
@@ -84,7 +76,7 @@ export default function Reports() {
             CSV
           </Button>
         </div>
-      </header>
+      </PageHeader>
 
       {loading && !data ? (
         <div className="space-y-5">

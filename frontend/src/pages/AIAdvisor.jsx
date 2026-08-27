@@ -3,6 +3,7 @@ import { CalendarRange, Lightbulb, MessageSquare, RefreshCw, Sparkles, WifiOff }
 import toast from 'react-hot-toast';
 import Card, { CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 import Badge from '../components/ui/Badge';
 import { SkeletonCard } from '../components/ui/Skeleton';
 import ChatBox from '../components/ai/ChatBox';
@@ -63,23 +64,21 @@ export default function AIAdvisor() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100">
-            AI Advisor
-            {status && !status.configured && (
-              <Badge tone="warning" icon={WifiOff}>
-                Offline mode
-              </Badge>
-            )}
-          </h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            {status && status.configured
-              ? `Advice written from your actual expenses, budgets and goals${status.model ? ` · ${status.model}` : ''}.`
-              : 'No API key on the server, so the built-in rule-based advisor is answering.'}
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        title="AI Advisor"
+        badge={
+          status && !status.configured ? (
+            <Badge tone="warning" icon={WifiOff}>
+              Offline mode
+            </Badge>
+          ) : null
+        }
+        subtitle={
+          status && status.configured
+            ? `Advice written from your actual expenses, budgets and goals${status.model ? ` · ${status.model}` : ''}.`
+            : 'No API key on the server, so the built-in rule-based advisor is answering.'
+        }
+      />
 
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         {TABS.map((option) => (

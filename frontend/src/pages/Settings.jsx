@@ -3,18 +3,19 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Download, KeyRound, Monitor, Moon, Plus, Sun, Tag, Trash2, User, X } from 'lucide-react';
-import toast from 'react-hot-toast';
 import Card, { CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import PageHeader from '../components/ui/PageHeader';
 import Input from '../components/ui/Input';
+import PasswordInput from '../components/ui/PasswordInput';
 import Select from '../components/ui/Select';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import useCategories from '../hooks/useCategories';
+import useMutation from '../hooks/useMutation';
 import profileService from '../services/profileService';
 import authService from '../services/authService';
-import { getErrorMessage } from '../services/api';
 import { CATEGORY_NAMES, CURRENCIES } from '../utils/constants';
 import { cn } from '../utils/format';
 
@@ -56,7 +57,10 @@ export default function Settings() {
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
-  const [busy, setBusy] = useState(false);
+  // Deleting the account is the only write here whose in-flight state is shown,
+  // so it gets its own flag; the rest just need the shared toast handling.
+  const { saving: busy, run: runDelete } = useMutation();
+  const { run } = useMutation();
 
   const profileForm = useForm({
     resolver: zodResolver(profileSchema),
@@ -74,62 +78,39 @@ export default function Settings() {
     defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
   });
 
-  const saveProfile = async (values) => {
-    try {
-      const updated = await profileService.update(values);
-      updateUser(updated);
-      toast.success('Profile updated');
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    }
-  };
+  const saveProfile = (values) =>
+    run(() => profileService.update(values), {
+      success: 'Profile updated',
+      onDone: updateUser,
+    });
 
-  const changePassword = async (values) => {
-    try {
-      await authService.changePassword(values.currentPassword, values.newPassword);
-      toast.success('Password changed. Other devices were logged out.');
-      setPasswordOpen(false);
-      passwordForm.reset();
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    }
-  };
+  const changePassword = (values) =>
+    run(() => authService.changePassword(values.currentPassword, values.newPassword), {
+      success: 'Password changed. Other devices were logged out.',
+      onDone: () => {
+        setPasswordOpen(false);
+        passwordForm.reset();
+      },
+    });
 
-  const addCategory = async () => {
+  const addCategory = () => {
     const name = newCategory.trim();
-    if (!name) return;
-    try {
-      await add(name);
-      setNewCategory('');
-      toast.success(`Added "${name}"`);
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    }
+    if (!name) return undefined;
+    return run(() => add(name), {
+      success: `Added "${name}"`,
+      onDone: () => setNewCategory(''),
+    });
   };
 
-  const deleteAccount = async () => {
-    setBusy(true);
-    try {
-      await profileService.deleteAccount(deletePassword);
-      toast.success('Account deleted');
-      await logout();
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const deleteAccount = () =>
+    runDelete(() => profileService.deleteAccount(deletePassword), {
+      success: 'Account deleted',
+      onDone: logout,
+    });
 
   return (
     <div className="max-w-3xl space-y-5">
-      <header>
-        <h1 className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100">
-          Settings
-        </h1>
-        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-          Your profile, your categories, your data.
-        </p>
-      </header>
+      <PageHeader title="Settings" subtitle="Your profile, your categories, your data." />
 
       {/* Profile */}
       <Card>
@@ -216,14 +197,7 @@ export default function Settings() {
               {name}
               <button
                 type="button"
-                onClick={async () => {
-                  try {
-                    await remove(name);
-                    toast.success(`Removed "${name}"`);
-                  } catch (error) {
-                    toast.error(getErrorMessage(error));
-                  }
-                }}
+                onClick={() => run(() => remove(name), { success: `Removed "${name}"` })}
                 aria-label={`Remove ${name}`}
                 className="rounded-full p-0.5 hover:bg-brand-100 dark:hover:bg-brand-500/20"
               >
@@ -282,14 +256,7 @@ export default function Settings() {
             <Button
               variant="outline"
               icon={Download}
-              onClick={async () => {
-                try {
-                  await profileService.exportData();
-                  toast.success('Export downloaded');
-                } catch (error) {
-                  toast.error(getErrorMessage(error));
-                }
-              }}
+              onClick={() => run(() => profileService.exportData(), { success: 'Export downloaded' })}
             >
               Download
             </Button>
@@ -312,9 +279,8 @@ export default function Settings() {
       {/* Change password */}
       <Modal open={passwordOpen} onClose={() => setPasswordOpen(false)} title="Change your password" size="sm">
         <form onSubmit={passwordForm.handleSubmit(changePassword)} className="space-y-4">
-          <Input
+          <PasswordInput
             label="Current password"
-            type="password"
             autoComplete="current-password"
             error={
               passwordForm.formState.errors.currentPassword &&
@@ -322,9 +288,8 @@ export default function Settings() {
             }
             {...passwordForm.register('currentPassword')}
           />
-          <Input
+          <PasswordInput
             label="New password"
-            type="password"
             autoComplete="new-password"
             hint="At least 8 characters, with a letter and a number"
             error={
@@ -332,9 +297,8 @@ export default function Settings() {
             }
             {...passwordForm.register('newPassword')}
           />
-          <Input
+          <PasswordInput
             label="Confirm new password"
-            type="password"
             autoComplete="new-password"
             error={
               passwordForm.formState.errors.confirmPassword &&
@@ -376,9 +340,8 @@ export default function Settings() {
             This removes your profile, every expense, all goals, budgets and your AI conversation. It cannot be
             undone. Consider exporting your data first.
           </p>
-          <Input
+          <PasswordInput
             label="Type your password to confirm"
-            type="password"
             autoComplete="current-password"
             value={deletePassword}
             onChange={(event) => setDeletePassword(event.target.value)}
