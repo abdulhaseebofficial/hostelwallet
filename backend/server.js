@@ -50,6 +50,13 @@ const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .map((o) => o.trim())
   .filter(Boolean);
 
+// On Vercel the frontend and this API answer on one domain, so the deployment's
+// own URL is same-origin traffic that still arrives with an Origin header. Allow
+// it without making every deploy depend on CLIENT_URL being updated by hand.
+[process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_URL]
+  .filter(Boolean)
+  .forEach((host) => allowedOrigins.push(`https://${host}`));
+
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -110,6 +117,35 @@ app.get('/api/meta', (_req, res) => {
   });
 });
 
+/**
+ * Vercel imports this module and drives `app` itself, so `start()` never runs
+ * there and nothing would ever open the database connection. Gate the data
+ * routes on a memoized bootstrap instead: the first request pays for it and
+ * every later invocation on the same instance reuses the connection.
+ *
+ * `/`, `/api/health` and `/api/meta` are deliberately above this line so a
+ * health check still answers (reporting `database: disconnected`) when Mongo
+ * is unreachable.
+ */
+let booted = null;
+
+const bootstrap = () => {
+  if (!booted) {
+    booted = (async () => {
+      validateEnv(); // refuse to serve on a weak or missing signing key
+      await connectDB();
+    })().catch((err) => {
+      booted = null; // one failed boot must not poison every later request
+      throw err;
+    });
+  }
+  return booted;
+};
+
+app.use('/api', (_req, _res, next) => {
+  bootstrap().then(() => next(), next);
+});
+
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/profile', require('./routes/profileRoutes'));
 app.use('/api/expenses', require('./routes/expenseRoutes'));
@@ -168,8 +204,7 @@ let server;
 
 const start = async () => {
   try {
-    validateEnv(); // refuse to boot on a weak or missing signing key
-    await connectDB();
+    await bootstrap(); // validates the environment, then opens the connection
 
     server = app.listen(PORT, () => {
       console.log('');
@@ -208,6 +243,9 @@ process.on('unhandledRejection', (reason) => {
   console.error('[fatal] unhandled promise rejection:', reason);
 });
 
+// `npm start` runs this file directly and listens on a port. Vercel instead
+// imports it and looks for the Express app as the module's default export.
 if (require.main === module) start();
 
-module.exports = { app, start };
+module.exports = app;
+module.exports.start = start;
