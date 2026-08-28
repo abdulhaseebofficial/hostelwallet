@@ -11,3 +11,6 @@ coverage/
 
 # local dev database
 .mongodb-data/
+
+.vercel
+.env*
