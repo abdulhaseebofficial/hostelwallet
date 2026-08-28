@@ -83,8 +83,15 @@ const assertAnswered = (response) => {
 // naturally with western grouping (125,000).
 const localeFor = (currency) => (currency === 'INR' ? 'en-IN' : currency === 'PKR' ? 'en-PK' : 'en-US');
 
+/**
+ * Money as the advisor should say it: whole units, no paisa.
+ *
+ * Student money is round money. "Keep it under PKR 2,032.67 a day" is both
+ * unsayable and slightly absurd advice, and the dashboard tile beside it shows
+ * PKR 2,033 - two different numbers for the same figure reads as a bug.
+ */
 const money = (currency, n) =>
-  `${currency} ${round2(n || 0).toLocaleString(localeFor(currency))}`;
+  `${currency} ${Math.round(Number(n) || 0).toLocaleString(localeFor(currency))}`;
 
 /**
  * Renders the caller's spending snapshot as a compact, readable block of text.

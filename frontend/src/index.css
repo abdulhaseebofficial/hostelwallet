@@ -76,8 +76,19 @@
 @layer components {
   /* Surfaces are separated by a hairline, not a drop shadow. */
   .hw-card {
-    @apply rounded-2xl border border-slate-200 bg-canvas-card shadow-card;
+    @apply rounded-2xl border border-slate-200 bg-canvas-card shadow-raised;
     @apply dark:border-slate-800 dark:bg-canvas-darkCard;
+  }
+
+  /**
+   * The one card on a screen carrying the number the student actually came
+   * for. Four identically-styled tiles make the reader do the ranking; this
+   * does it for them.
+   */
+  .hw-card-hero {
+    @apply rounded-2xl border border-brand-200 shadow-lift;
+    @apply bg-gradient-to-br from-brand-50 via-canvas-card to-canvas-card;
+    @apply dark:border-brand-500/25 dark:from-brand-500/10 dark:via-canvas-darkCard dark:to-canvas-darkCard;
   }
 
   .hw-input {

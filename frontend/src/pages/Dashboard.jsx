@@ -87,17 +87,23 @@ export default function Dashboard() {
           totals.daysLeftInMonth === 1 ? '' : 's'
         } left in the month`}
       >
-        <Button icon={Plus} onClick={() => setAddOpen(true)}>
+        {/* Hidden on phones: the raised button in the tab bar does this job,
+            and two buttons for one action just costs a screenful of space. */}
+        <Button icon={Plus} onClick={() => setAddOpen(true)} className="hidden sm:inline-flex">
           Add expense
         </Button>
       </PageHeader>
 
-      {/* Headline numbers */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Headline numbers. Two across on a phone: full-width tiles turned four
+          figures into four screenfuls of scrolling to reach the charts. */}
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        {/* The reason the app was opened, so it does not look like the other three. */}
         <StatCard
+          hero
           label="Money left this month"
           value={totals.remaining}
           currency={currency}
+          decimals={0}
           icon={Wallet}
           tone={overspending ? 'danger' : totals.spentPercent > 80 ? 'caution' : 'safe'}
           progress={Math.min(100, totals.spentPercent)}
@@ -107,7 +113,7 @@ export default function Dashboard() {
               ? 'You are over your income for this month'
               : `${totals.spentPercent}% of your income used`
           }
-          className="sm:col-span-2 lg:col-span-1"
+          className="col-span-2 lg:col-span-1"
         />
 
         <StatCard
@@ -138,9 +144,12 @@ export default function Dashboard() {
           label="Safe to spend per day"
           value={totals.safeDailySpend}
           currency={currency}
+          decimals={0}
           icon={CalendarDays}
           tone="brand"
-          footnote={`You average ${formatMoney(totals.dailyAverage, currency)} a day`}
+          footnote={`You average ${formatMoney(totals.dailyAverage, currency, { decimals: 0 })} a day`}
+          // Third of three secondary tiles, so it takes the orphan row alone.
+          className="max-lg:col-span-2"
         />
       </section>
 
@@ -159,7 +168,9 @@ export default function Dashboard() {
             subtitle={`${totals.expenseCount} transaction${totals.expenseCount === 1 ? '' : 's'} this month`}
             icon={TrendingUp}
           />
-          <TrendChart data={trend} currency={currency} average={totals.dailyAverage} />
+          {/* Taller than the default: it sits beside the donut, whose legend
+              runs one row per category, and a short chart left dead space. */}
+          <TrendChart data={trend} currency={currency} average={totals.dailyAverage} height={340} />
         </Card>
       </section>
 

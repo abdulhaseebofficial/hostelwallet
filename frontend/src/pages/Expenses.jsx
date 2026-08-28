@@ -115,7 +115,8 @@ export default function Expenses() {
             : undefined
         }
       >
-        <Button icon={Plus} onClick={openNew}>
+        {/* The tab bar's raised button already covers this on a phone. */}
+        <Button icon={Plus} onClick={openNew} className="hidden sm:inline-flex">
           Add expense
         </Button>
       </PageHeader>

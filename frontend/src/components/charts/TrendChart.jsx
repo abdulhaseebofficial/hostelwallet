@@ -37,9 +37,11 @@ export default function TrendChart({ data = [], currency = 'INR', average = 0, h
   }
 
   return (
-    <div style={{ height }}>
+    <div>
+      <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+        {/* top:16 keeps the highest y-axis label off the card's edge. */}
+        <AreaChart data={data} margin={{ top: 16, right: 8, bottom: 0, left: -12 }}>
           <defs>
             <linearGradient id="hw-trend-fill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={seriesColor} stopOpacity={0.28} />
@@ -65,19 +67,14 @@ export default function TrendChart({ data = [], currency = 'INR', average = 0, h
             tickFormatter={(value) => formatMoney(value, currency, { compact: true })}
           />
 
-          {average > 0 && (
-            <ReferenceLine
-              y={average}
-              stroke={ink.axis}
-              strokeDasharray="4 4"
-              label={{
-                value: `avg ${formatMoney(average, currency, { compact: true })}`,
-                position: 'insideTopRight',
-                fill: ink.muted,
-                fontSize: 10,
-              }}
-            />
-          )}
+          {/*
+            The line carries no inline label. Recharts pins a reference-line
+            label to the plot edge, where it lands on top of the series and the
+            axis ticks whenever the average sits low - which, for a month with
+            one big bill and lots of small days, is most of the time. The
+            caption under the chart says the same thing with room to say it.
+          */}
+          {average > 0 && <ReferenceLine y={average} stroke={ink.axis} strokeDasharray="4 4" />}
 
           <Tooltip
             cursor={{ stroke: ink.axis, strokeWidth: 1 }}
@@ -97,6 +94,18 @@ export default function TrendChart({ data = [], currency = 'INR', average = 0, h
           />
         </AreaChart>
       </ResponsiveContainer>
+      </div>
+
+      {average > 0 && (
+        <p className="mt-2 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <span
+            className="inline-block h-0 w-6 shrink-0 border-t-2 border-dashed"
+            style={{ borderColor: ink.axis }}
+            aria-hidden="true"
+          />
+          Daily average {formatMoney(average, currency, { decimals: 0 })}
+        </p>
+      )}
     </div>
   );
 }
