@@ -6,6 +6,8 @@
  * turns on debug output or leaks a password-reset token.
  */
 
+const { mongoUri, MONGO_URI_MISSING } = require('./mongoUri');
+
 const PLACEHOLDERS = [
   'change_me_access_secret',
   'change_me_refresh_secret',
@@ -56,8 +58,8 @@ const validateEnv = () => {
     errors.push('JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different values.');
   }
 
-  if (!process.env.MONGO_URI) {
-    errors.push('MONGO_URI is not set. Copy backend/.env.example to backend/.env');
+  if (!mongoUri()) {
+    errors.push(MONGO_URI_MISSING);
   }
 
   if (isProduction()) {

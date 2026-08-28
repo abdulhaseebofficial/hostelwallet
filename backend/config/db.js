@@ -1,14 +1,16 @@
 const mongoose = require('mongoose');
+const { mongoUri, MONGO_URI_MISSING } = require('./mongoUri');
 
 /**
  * Connect to MongoDB.
  * Mongoose 8 buffers queries until the connection is ready, but we still fail
- * fast on start-up so a bad MONGO_URI is obvious instead of silently hanging.
+ * fast on start-up so a bad connection string is obvious instead of silently
+ * hanging.
  */
 const connectDB = async () => {
-  const uri = process.env.MONGO_URI;
+  const uri = mongoUri();
   if (!uri) {
-    throw new Error('MONGO_URI is not set. Copy backend/.env.example to backend/.env');
+    throw new Error(MONGO_URI_MISSING);
   }
 
   mongoose.set('strictQuery', true);

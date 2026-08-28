@@ -394,7 +394,7 @@ Set these in **Vercel → Settings → Environment Variables**, scoped to the
 
 | Variable | Value |
 |---|---|
-| `MONGO_URI` | Your Atlas connection string |
+| `MONGO_URI` | Your Atlas connection string. **Skip this** if you add MongoDB Atlas from the Vercel Marketplace - it provisions a free cluster and sets `MONGODB_URI` itself, which the app also accepts |
 | `JWT_ACCESS_SECRET` | `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
 | `JWT_REFRESH_SECRET` | Same command again — it must **differ** from the access secret |
 | `NODE_ENV` | `production` |
