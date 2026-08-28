@@ -436,17 +436,37 @@ telling you one of the three required variables above is not set.
 
 ## Screenshots
 
-> Add your own captures here once it is running locally.
+> Captured from the running app against the seeded demo account.
 
-| Screen | Image |
+### Dashboard
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Logging an expense on a phone
+The raised button in the middle of the tab bar opens the same dialog from any
+screen. Amounts are chips that add up on repeat taps, and categories are one
+tap rather than a dropdown.
+
+| Mobile dashboard | Quick add |
 |---|---|
-| Dashboard | `docs/screenshots/dashboard.png` |
-| Expenses with filters | `docs/screenshots/expenses.png` |
-| Savings goals | `docs/screenshots/goals.png` |
-| Budget with AI plan | `docs/screenshots/budget.png` |
-| AI advisor chat | `docs/screenshots/advisor.png` |
-| Monthly report | `docs/screenshots/reports.png` |
-| Dark mode | `docs/screenshots/dark-mode.png` |
+| ![Mobile dashboard](docs/screenshots/mobile-dashboard.png) | ![Quick add](docs/screenshots/mobile-quick-add.png) |
+
+### Expenses, with filters
+![Expenses](docs/screenshots/expenses.png)
+
+### Savings goals
+![Savings goals](docs/screenshots/goals.png)
+
+### Budget
+![Budget](docs/screenshots/budget.png)
+
+### AI advisor
+![AI advisor](docs/screenshots/advisor.png)
+
+### Monthly report
+![Monthly report](docs/screenshots/reports.png)
+
+### Dark mode
+![Dark mode](docs/screenshots/dark-mode.png)
 
 ---
 
