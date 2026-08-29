@@ -186,6 +186,38 @@ The login screen has a **Try the demo account** button that fills these in.
 
 ---
 
+## Testing
+
+```bash
+npm run dev      # the API and MongoDB must be running
+npm run qa       # 102 checks against the live stack
+```
+
+Two dependency-free suites — Node 18's built-in `fetch` is all they need, so
+they run on a fresh clone.
+
+| Suite | Covers |
+|---|---|
+| `tests/api.test.js` | 58 checks: every resource end to end, the auth edges, and the authorisation boundary between two students |
+| `tests/settings.test.js` | 44 checks: every Settings control, including the destructive ones |
+
+They exercise the failure paths as well as the happy ones — a negative amount,
+a tampered token, a malformed e-mail, a category still in use — and assert the
+arithmetic, not just the status code (`income − spent = remaining`).
+
+The authorisation block is the one worth keeping: it registers a second student
+and proves the first one's expenses, edits and goals are all invisible to them.
+
+Anything destructive (changing a password, deleting an account) runs against a
+throwaway account created for the run, so the seeded demo data survives. The
+suites exit non-zero on failure, so CI can gate on them.
+
+> If the auth rate limiter ever trips, the suite says so and stops rather than
+> reporting fifty cascading failures. Limits are relaxed outside production, so
+> repeated local runs are fine.
+
+---
+
 ## Data models
 
 **User** — `name, email, password, monthlyIncome, currency, university, hostelName,

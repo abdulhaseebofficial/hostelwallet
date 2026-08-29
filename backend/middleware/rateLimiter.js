@@ -1,14 +1,26 @@
 const rateLimit = require('express-rate-limit');
+const { isProduction } = require('../config/validateEnv');
 
 const message = (msg) => ({ success: false, message: msg });
 
 /**
+ * Limits are strict in production and generous in local development.
+ *
+ * The point of these limits is to stop brute force coming from the internet.
+ * A dev server on localhost has no such exposure, and a strict cap there only
+ * breaks legitimate work: the QA suite alone makes well over twenty auth calls.
+ * `isProduction()` is default-deny, so an unset NODE_ENV still gets the strict
+ * numbers - development has to be opted into explicitly.
+ */
+const forEnv = (strict, relaxed) => (isProduction() ? strict : relaxed);
+
+/**
  * Brute-force protection for login / register / password reset.
- * 20 attempts per 15 minutes per IP.
+ * 20 attempts per 15 minutes per IP in production.
  */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: forEnv(20, 300),
   standardHeaders: true,
   legacyHeaders: false,
   message: message('Too many attempts. Please try again in 15 minutes.'),
@@ -21,7 +33,7 @@ const authLimiter = rateLimit({
  */
 const aiLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 30,
+  max: forEnv(30, 300),
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => (req.user ? String(req.user._id) : req.ip),
@@ -46,7 +58,7 @@ const feedbackLimiter = rateLimit({
 /** Broad safety net for the rest of the API. */
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 600,
+  max: forEnv(600, 5000),
   standardHeaders: true,
   legacyHeaders: false,
   message: message('Too many requests. Please slow down.'),
