@@ -1,5 +1,7 @@
 import { PiggyBank, Sparkles, TrendingDown } from 'lucide-react';
 import BrandMark from './BrandMark';
+import ContactLinks from '../feedback/ContactLinks';
+import { DEVELOPER } from '../../utils/constants';
 
 const HIGHLIGHTS = [
   { icon: PiggyBank, title: 'Know where it goes', text: 'Mess, chai, rickshaw, mobile load - every rupee in one place.' },
@@ -67,6 +69,21 @@ export default function AuthShell({ title, subtitle, children, footer }) {
           {footer && (
             <div className="mt-7 text-center text-sm text-slate-600 dark:text-slate-400">{footer}</div>
           )}
+
+          {/*
+            Signed-out visitors get the direct links, not the feedback dialog:
+            POST /api/feedback sits behind `protect`, so offering the form here
+            would hand someone a box that cannot send. A bug on the sign-in
+            screen is exactly the one you cannot report from inside the app.
+          */}
+          <div className="mt-10 border-t border-slate-200 pt-5 text-center dark:border-slate-800">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Something broken or an idea to share? Reach {DEVELOPER.name}:
+            </p>
+            <div className="mt-2.5 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-slate-500 dark:text-slate-400">
+              <ContactLinks />
+            </div>
+          </div>
         </div>
       </main>
     </div>
