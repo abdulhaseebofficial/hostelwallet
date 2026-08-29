@@ -64,8 +64,13 @@ api.interceptors.response.use(
     const original = error.config;
     const status = error.response ? error.response.status : null;
 
-    // Never try to refresh the refresh call itself, and only retry once.
-    const isAuthRoute = original && original.url && original.url.includes('/auth/');
+    // Never try to refresh the calls that mint a session themselves, and only
+    // retry once. `/auth/me` is deliberately absent from this list: an expired
+    // access token with a live refresh cookie is exactly the case the silent
+    // refresh exists for, and matching it here logged the student out on boot
+    // 15 minutes after login despite a 30-day cookie.
+    const NO_REFRESH = ['/auth/refresh', '/auth/login', '/auth/register', '/auth/logout'];
+    const isAuthRoute = original && original.url && NO_REFRESH.some((path) => original.url.startsWith(path));
 
     if (status === 401 && original && !original._retried && !isAuthRoute) {
       original._retried = true;
