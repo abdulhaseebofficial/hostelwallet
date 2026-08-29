@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview"
   },
+  "license": "MIT",
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
     "axios": "^1.7.7",

@@ -502,4 +502,4 @@ tap rather than a dropdown.
 
 ## License
 
-MIT — use it, learn from it, submit it, ship it.
+[MIT](LICENSE) — use it, learn from it, submit it, ship it.
