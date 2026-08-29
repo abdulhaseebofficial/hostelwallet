@@ -10,7 +10,6 @@
     "dev:web": "npm run dev --prefix frontend",
     "seed": "npm run seed --prefix backend",
     "build": "npm run build --prefix frontend",
-    "qa": "node tests/api.test.js && node tests/settings.test.js",
     "start": "npm start --prefix backend",
     "qa": "node tests/api.test.js && node tests/settings.test.js",
     "qa:api": "node tests/api.test.js",

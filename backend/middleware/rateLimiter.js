@@ -43,11 +43,15 @@ const aiLimiter = rateLimit({
 
 /**
  * Feedback writes a row and attempts an e-mail, so it is worth more to a
- * spammer than a read: 10 submissions per hour per authenticated user.
+ * spammer than a read: 10 submissions per hour per authenticated user in
+ * production. Relaxed in development for the same reason as the limiters
+ * above - the QA suite submits feedback on every run, and a hard cap of 10
+ * makes the suite fail on its second run of the hour rather than finding a
+ * real bug.
  */
 const feedbackLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 10,
+  max: forEnv(10, 100),
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => (req.user ? String(req.user._id) : req.ip),
