@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Linkedin, Mail, Send, Star } from 'lucide-react';
+import { Send, Star } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
 import Textarea from '../ui/Textarea';
+import ContactLinks from './ContactLinks';
 import useMutation from '../../hooks/useMutation';
 import feedbackService from '../../services/feedbackService';
 import { DEVELOPER, FEEDBACK_TYPES } from '../../utils/constants';
@@ -151,22 +152,7 @@ export default function FeedbackModal({ open, onClose }) {
             Or reach {DEVELOPER.name} directly:
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <a
-              href={DEVELOPER.linkedin}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-brand-400 hover:text-brand-700 dark:border-slate-700 dark:text-slate-200 dark:hover:text-brand-300"
-            >
-              <Linkedin className="h-3.5 w-3.5" aria-hidden="true" />
-              LinkedIn
-            </a>
-            <a
-              href={`mailto:${DEVELOPER.email}?subject=HostelWallet%20feedback`}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-brand-400 hover:text-brand-700 dark:border-slate-700 dark:text-slate-200 dark:hover:text-brand-300"
-            >
-              <Mail className="h-3.5 w-3.5" aria-hidden="true" />
-              {DEVELOPER.email}
-            </a>
+            <ContactLinks variant="button" showEmailAddress />
           </div>
         </div>
       </form>

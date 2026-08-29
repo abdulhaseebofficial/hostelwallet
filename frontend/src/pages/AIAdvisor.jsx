@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CalendarRange, Lightbulb, MessageSquare, RefreshCw, Sparkles, WifiOff } from 'lucide-react';
-import toast from 'react-hot-toast';
 import Card, { CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import PageHeader from '../components/ui/PageHeader';
@@ -9,8 +8,8 @@ import { SkeletonCard } from '../components/ui/Skeleton';
 import ChatBox from '../components/ai/ChatBox';
 import AdviceCard from '../components/ai/AdviceCard';
 import { useAuth } from '../context/AuthContext';
+import useMutation from '../hooks/useMutation';
 import aiService from '../services/aiService';
-import { getErrorMessage } from '../services/api';
 import { cn } from '../utils/format';
 
 const TABS = [
@@ -25,36 +24,25 @@ export default function AIAdvisor() {
   const [status, setStatus] = useState(null);
 
   const [advice, setAdvice] = useState(null);
-  const [adviceLoading, setAdviceLoading] = useState(false);
+  const { saving: adviceLoading, run: runAdvice } = useMutation();
 
   const [weekly, setWeekly] = useState(null);
-  const [weeklyLoading, setWeeklyLoading] = useState(false);
+  const { saving: weeklyLoading, run: runWeekly } = useMutation();
 
   useEffect(() => {
     aiService.status().then(setStatus).catch(() => setStatus({ configured: false }));
   }, []);
 
-  const loadAdvice = useCallback(async () => {
-    setAdviceLoading(true);
-    try {
-      setAdvice(await aiService.advice({ tipCount: 4 }));
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    } finally {
-      setAdviceLoading(false);
-    }
-  }, []);
+  // Each tab keeps its own in-flight flag, so opening one does not grey out the other.
+  const loadAdvice = useCallback(
+    () => runAdvice(() => aiService.advice({ tipCount: 4 }), { onDone: setAdvice }),
+    [runAdvice]
+  );
 
-  const loadWeekly = useCallback(async () => {
-    setWeeklyLoading(true);
-    try {
-      setWeekly(await aiService.weeklySummary());
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    } finally {
-      setWeeklyLoading(false);
-    }
-  }, []);
+  const loadWeekly = useCallback(
+    () => runWeekly(() => aiService.weeklySummary(), { onDone: setWeekly }),
+    [runWeekly]
+  );
 
   // Fetch a tab's data the first time it is opened, not before.
   useEffect(() => {

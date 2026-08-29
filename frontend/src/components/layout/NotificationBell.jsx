@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bell, CheckCheck, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
 import notificationService from '../../services/notificationService';
+import useMutation from '../../hooks/useMutation';
 import { formatRelative, cn } from '../../utils/format';
-import { getErrorMessage } from '../../services/api';
 
 const TYPE_STYLES = {
   overspend: 'bg-danger/10 text-danger dark:bg-danger/15',
@@ -20,6 +19,7 @@ export default function NotificationBell() {
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const containerRef = useRef(null);
+  const { run } = useMutation();
 
   const load = useCallback(async () => {
     try {
@@ -48,25 +48,21 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', onClick);
   }, [open]);
 
-  const markAllRead = async () => {
-    try {
-      await notificationService.markAllRead();
-      setItems((current) => current.map((n) => ({ ...n, isRead: true })));
-      setUnread(0);
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    }
-  };
+  const markAllRead = () =>
+    run(() => notificationService.markAllRead(), {
+      onDone: () => {
+        setItems((current) => current.map((n) => ({ ...n, isRead: true })));
+        setUnread(0);
+      },
+    });
 
-  const clearAll = async () => {
-    try {
-      await notificationService.clearAll();
-      setItems([]);
-      setUnread(0);
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    }
-  };
+  const clearAll = () =>
+    run(() => notificationService.clearAll(), {
+      onDone: () => {
+        setItems([]);
+        setUnread(0);
+      },
+    });
 
   const openTray = async () => {
     const next = !open;

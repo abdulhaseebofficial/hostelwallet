@@ -1,4 +1,5 @@
-import { Linkedin, Mail, MessageSquarePlus } from 'lucide-react';
+import { MessageSquarePlus } from 'lucide-react';
+import ContactLinks from '../feedback/ContactLinks';
 import { DEVELOPER } from '../../utils/constants';
 
 export default function Footer({ onOpenFeedback }) {
@@ -14,23 +15,7 @@ export default function Footer({ onOpenFeedback }) {
           Built by <span className="font-medium text-slate-600 dark:text-slate-300">{DEVELOPER.name}</span>
         </span>
 
-        <a
-          href={DEVELOPER.linkedin}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="inline-flex items-center gap-1.5 transition hover:text-brand-600 dark:hover:text-brand-400"
-        >
-          <Linkedin className="h-3.5 w-3.5" aria-hidden="true" />
-          LinkedIn
-        </a>
-
-        <a
-          href={`mailto:${DEVELOPER.email}?subject=HostelWallet`}
-          className="inline-flex items-center gap-1.5 transition hover:text-brand-600 dark:hover:text-brand-400"
-        >
-          <Mail className="h-3.5 w-3.5" aria-hidden="true" />
-          Email
-        </a>
+        <ContactLinks />
 
         {onOpenFeedback && (
           <button

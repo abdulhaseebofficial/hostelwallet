@@ -26,4 +26,4 @@ const MONGO_URI_MISSING =
   'No MongoDB connection string. Set MONGO_URI (or MONGODB_URI, which Vercel\'s ' +
   'MongoDB Atlas integration sets for you). Locally: copy backend/.env.example to backend/.env';
 
-module.exports = { mongoUri, MONGO_URI_VARS, MONGO_URI_MISSING };
+module.exports = { mongoUri, MONGO_URI_MISSING };

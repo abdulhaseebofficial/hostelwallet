@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Send, Sparkles, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import aiService from '../../services/aiService';
+import useMutation from '../../hooks/useMutation';
 import { getErrorMessage } from '../../services/api';
 import Button from '../ui/Button';
 import Spinner from '../ui/Spinner';
@@ -20,6 +21,7 @@ export default function ChatBox({ userName = 'You' }) {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef(null);
+  const { run } = useMutation();
 
   useEffect(() => {
     aiService
@@ -55,15 +57,11 @@ export default function ChatBox({ userName = 'You' }) {
     }
   };
 
-  const clear = async () => {
-    try {
-      await aiService.clearChat();
-      setMessages([]);
-      toast.success('Conversation cleared');
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    }
-  };
+  const clear = () =>
+    run(() => aiService.clearChat(), {
+      success: 'Conversation cleared',
+      onDone: () => setMessages([]),
+    });
 
   return (
     <div className="hw-card flex h-[68vh] min-h-[420px] flex-col overflow-hidden p-0">
