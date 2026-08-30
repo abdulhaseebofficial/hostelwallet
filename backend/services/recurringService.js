@@ -2,13 +2,13 @@
  * recurringService — turns recurring expense templates into real expenses.
  *
  * A recurring expense (e.g. the monthly mess bill) is stored as an ordinary
- * Expense with `isRecurring: true` and a `nextRunAt` date. When that date
+ * expense with `isRecurring: true` and a `nextRunAt` date. When that date
  * passes we clone the template into a new expense and move `nextRunAt`
  * forward. Cloning is idempotent: the loop always advances the pointer, so
  * running it twice in a row cannot create a duplicate.
  */
 
-const Expense = require('../models/Expense');
+const expensesRepo = require('../db/expenses');
 
 /** Next occurrence after `date` for a given frequency. */
 const advance = (date, frequency) => {
@@ -27,39 +27,34 @@ const firstRunAfter = (date, frequency) => advance(date, frequency);
  * Returns the number of expenses created.
  */
 const materializeForUser = async (userId, now = new Date()) => {
-  const templates = await Expense.find({
-    userId,
-    isRecurring: true,
-    nextRunAt: { $lte: now },
-  });
+  const templates = await expensesRepo.findDue(userId);
 
   let created = 0;
 
   for (const template of templates) {
     // Cap the catch-up so a template untouched for years cannot flood the DB.
     let guard = 0;
+    let pointer = template.nextRunAt ? new Date(template.nextRunAt) : null;
     const clones = [];
 
-    while (template.nextRunAt && template.nextRunAt <= now && guard < 60) {
+    while (pointer && pointer <= now && guard < 60) {
       clones.push({
         userId: template.userId,
         amount: template.amount,
         category: template.category,
         description: template.description,
         paymentMethod: template.paymentMethod,
-        date: new Date(template.nextRunAt),
-        isRecurring: false,
+        date: new Date(pointer),
         generatedFrom: template._id,
       });
-      template.nextRunAt = advance(template.nextRunAt, template.recurringFrequency);
+      pointer = advance(pointer, template.recurringFrequency);
       guard += 1;
     }
 
     if (clones.length) {
-      await Expense.insertMany(clones);
-      created += clones.length;
+      created += await expensesRepo.createMany(clones);
     }
-    await template.save();
+    await expensesRepo.setNextRunAt(template._id, pointer);
   }
 
   return created;
@@ -68,7 +63,7 @@ const materializeForUser = async (userId, now = new Date()) => {
 /** Cron entry point: catch every user up at once. */
 const materializeAll = async () => {
   const now = new Date();
-  const userIds = await Expense.distinct('userId', { isRecurring: true, nextRunAt: { $lte: now } });
+  const userIds = await expensesRepo.userIdsWithDue();
 
   let total = 0;
   for (const userId of userIds) {

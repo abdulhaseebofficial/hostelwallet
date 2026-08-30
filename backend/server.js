@@ -72,7 +72,7 @@ app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 app.use(cookieParser());
 
-// Strip MongoDB operators before anything can forward them into a query.
+// Strip operator-shaped keys before anything can forward them into a query.
 app.use(sanitizeRequest);
 
 if (process.env.NODE_ENV !== 'test') {
@@ -91,13 +91,13 @@ app.get('/', (_req, res) => {
   });
 });
 
-app.get('/api/health', (_req, res) => {
-  const mongoose = require('mongoose');
+app.get('/api/health', async (_req, res) => {
+  const { isConnected } = require('./db/pool');
   res.json({
     success: true,
     status: 'ok',
     uptime: Math.round(process.uptime()),
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    database: (await isConnected()) ? 'connected' : 'disconnected',
     ai: Boolean(process.env.ANTHROPIC_API_KEY) ? 'configured' : 'fallback mode',
     timestamp: new Date().toISOString(),
   });
@@ -124,8 +124,8 @@ app.get('/api/meta', (_req, res) => {
  * every later invocation on the same instance reuses the connection.
  *
  * `/`, `/api/health` and `/api/meta` are deliberately above this line so a
- * health check still answers (reporting `database: disconnected`) when Mongo
- * is unreachable.
+ * health check still answers (reporting `database: disconnected`) when the
+ * database is unreachable.
  */
 let booted = null;
 
@@ -173,7 +173,7 @@ app.use(errorHandler);
 const startCronJobs = () => {
   const { materializeAll } = require('./services/recurringService');
   const { runChecksForUser } = require('./services/notificationService');
-  const User = require('./models/User');
+  const usersRepo = require('./db/users');
 
   cron.schedule('5 0 * * *', async () => {
     try {
@@ -185,7 +185,7 @@ const startCronJobs = () => {
 
   cron.schedule('0 9 * * *', async () => {
     try {
-      const users = await User.find().select('_id currency name monthlyIncome');
+      const users = await usersRepo.findAllForAlerts();
       for (const user of users) {
         await runChecksForUser(user).catch(() => {});
       }
@@ -230,7 +230,7 @@ const shutdown = (signal) => {
   console.log(`\n[shutdown] ${signal} received, closing server`);
   if (!server) process.exit(0);
   server.close(() => {
-    require('mongoose').connection.close(false).finally(() => process.exit(0));
+    require('./db/pool').closePool().finally(() => process.exit(0));
   });
   // Do not hang forever if a socket refuses to close.
   setTimeout(() => process.exit(1), 10000).unref();

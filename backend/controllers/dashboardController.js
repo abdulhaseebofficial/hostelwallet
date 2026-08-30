@@ -1,4 +1,4 @@
-const Expense = require('../models/Expense');
+const expensesRepo = require('../db/expenses');
 const asyncHandler = require('../utils/asyncHandler');
 const { buildSnapshot } = require('../services/analyticsService');
 const { materializeForUser } = require('../services/recurringService');
@@ -21,10 +21,11 @@ const getSummary = asyncHandler(async (req, res) => {
   // refresh alerts. Both are safe to re-run.
   await materializeForUser(req.user._id);
 
-  const [snapshot, recentExpenses] = await Promise.all([
+  const [snapshot, recent] = await Promise.all([
     buildSnapshot(req.user, period),
-    Expense.find({ userId: req.user._id }).sort({ date: -1, _id: -1 }).limit(8).lean(),
+    expensesRepo.list(req.user._id, { limit: 8 }),
   ]);
+  const recentExpenses = recent.items;
 
   runChecksForUser(req.user).catch((e) => console.error('[notifications]', e.message));
 

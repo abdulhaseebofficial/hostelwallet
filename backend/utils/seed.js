@@ -11,15 +11,13 @@
  */
 
 require('dotenv').config();
-const mongoose = require('mongoose');
 const connectDB = require('../config/db');
-const User = require('../models/User');
-const Expense = require('../models/Expense');
-const Income = require('../models/Income');
-const Goal = require('../models/Goal');
-const Budget = require('../models/Budget');
-const Notification = require('../models/Notification');
-const ChatMessage = require('../models/ChatMessage');
+const { query, closePool } = require('../db/pool');
+const usersRepo = require('../db/users');
+const expensesRepo = require('../db/expenses');
+const incomeRepo = require('../db/income');
+const goalsRepo = require('../db/goals');
+const budgetsRepo = require('../db/budgets');
 
 const DEMO_EMAIL = 'demo@hostelwallet.app';
 
@@ -68,22 +66,15 @@ const buildMonth = (userId, year, month) => {
 const run = async () => {
   await connectDB();
 
-  const existing = await User.findOne({ email: DEMO_EMAIL });
+  // Deleting the account takes its expenses, income, goals, budgets,
+  // notifications and chat with it: every child table is ON DELETE CASCADE.
+  const existing = await usersRepo.findByEmail(DEMO_EMAIL);
   if (existing) {
-    const userId = existing._id;
-    await Promise.all([
-      Expense.deleteMany({ userId }),
-      Income.deleteMany({ userId }),
-      Goal.deleteMany({ userId }),
-      Budget.deleteMany({ userId }),
-      Notification.deleteMany({ userId }),
-      ChatMessage.deleteMany({ userId }),
-    ]);
-    await User.deleteOne({ _id: userId });
+    await usersRepo.remove(existing._id);
     console.log('[seed] removed previous demo data');
   }
 
-  const user = await User.create({
+  const user = await usersRepo.create({
     name: 'Demo Student',
     email: DEMO_EMAIL,
     password: 'demo1234',
@@ -91,8 +82,8 @@ const run = async () => {
     currency: 'PKR',
     university: 'University of the Punjab, Lahore',
     hostelName: 'University Hostel, Block C',
-    onboardingCompleted: true,
   });
+  await usersRepo.updateProfile(user._id, { onboardingCompleted: true });
 
   const now = new Date();
   const thisMonth = { y: now.getFullYear(), m: now.getMonth() + 1 };
@@ -105,11 +96,10 @@ const run = async () => {
     ...buildMonth(user._id, last.y, last.m),
     ...buildMonth(user._id, thisMonth.y, thisMonth.m),
   ];
-  await Expense.insertMany(expenses);
+  await expensesRepo.createMany(expenses);
 
   // Last month's hostel fee as a plain expense...
-  await Expense.create({
-    userId: user._id,
+  await expensesRepo.create(user._id, {
     amount: 9000,
     category: 'Rent/Hostel Fee',
     description: 'Hostel mess and room fee',
@@ -119,8 +109,7 @@ const run = async () => {
 
   // ...and this month's as the live recurring template, which clones itself on
   // the 3rd of next month.
-  await Expense.create({
-    userId: user._id,
+  await expensesRepo.create(user._id, {
     amount: 9000,
     category: 'Rent/Hostel Fee',
     description: 'Hostel mess and room fee',
@@ -131,43 +120,45 @@ const run = async () => {
     nextRunAt: new Date(thisMonth.y, thisMonth.m, 3),
   });
 
-  await Income.insertMany([
-    { userId: user._id, amount: 25000, source: 'Pocket Money', note: 'Sent from home', date: new Date(last.y, last.m - 1, 1) },
-    { userId: user._id, amount: 25000, source: 'Pocket Money', note: 'Sent from home', date: new Date(thisMonth.y, thisMonth.m - 1, 1) },
-    { userId: user._id, amount: 3000, source: 'Part-time Job', note: 'Weekend tuition', date: new Date(thisMonth.y, thisMonth.m - 1, 12) },
-  ]);
+  for (const row of [
+    { amount: 25000, source: 'Pocket Money', note: 'Sent from home', date: new Date(last.y, last.m - 1, 1) },
+    { amount: 25000, source: 'Pocket Money', note: 'Sent from home', date: new Date(thisMonth.y, thisMonth.m - 1, 1) },
+    { amount: 3000, source: 'Part-time Job', note: 'Weekend tuition', date: new Date(thisMonth.y, thisMonth.m - 1, 12) },
+  ]) {
+    await incomeRepo.create(user._id, row);
+  }
 
-  // Created one by one rather than with insertMany: the pre('save') hook is what
-  // flips isCompleted, and insertMany skips it (the emergency fund is fully funded).
-  await Goal.create([
+  // goalsRepo.create sets is_completed from the saved amount, so the fully
+  // funded emergency fund comes out already marked done.
+  for (const goal of [
     {
-      userId: user._id,
       title: 'Laptop for final year project',
       targetAmount: 120000,
       savedAmount: 28000,
       deadline: new Date(now.getFullYear(), now.getMonth() + 6, 1),
-      icon: '\uD83D\uDCBB',
+      icon: '💻',
       note: 'A used one is fine',
     },
     {
-      userId: user._id,
       title: 'Northern areas trip with friends',
       targetAmount: 25000,
       savedAmount: 9000,
       deadline: new Date(now.getFullYear(), now.getMonth() + 2, 15),
-      icon: '\uD83C\uDFD6',
+      icon: '🏖',
     },
     {
-      userId: user._id,
       title: 'Emergency fund',
       targetAmount: 10000,
       savedAmount: 10000,
       deadline: null,
-      icon: '\uD83D\uDEE1',
+      icon: '🛡',
     },
-  ]);
+  ]) {
+    await goalsRepo.create(user._id, goal);
+  }
 
-  await Budget.insertMany(
+  await budgetsRepo.upsertMany(
+    user._id,
     [
       ['Mess/Food', 6000],
       ['Rent/Hostel Fee', 9000],
@@ -178,27 +169,28 @@ const run = async () => {
       ['Health', 1200],
       ['Personal Care', 1200],
       ['Misc', 1500],
-    ].map(([category, limit]) => ({
-      userId: user._id,
-      category,
-      limit,
-      month: thisMonth.m,
-      year: thisMonth.y,
-    }))
+    ].map(([category, limit]) => ({ category, limit })),
+    thisMonth.m,
+    thisMonth.y
   );
+
+  const [{ n }] = await query(`SELECT count(*)::bigint AS n FROM expenses WHERE user_id = $1`, [
+    user._id,
+  ]);
 
   console.log('');
   console.log('  Demo data ready');
   console.log(`  email     ${DEMO_EMAIL}`);
   console.log('  password  demo1234');
-  console.log(`  expenses  ${expenses.length + 2}`);
+  console.log(`  expenses  ${n}`);
   console.log('');
 
-  await mongoose.connection.close();
+  await closePool();
   process.exit(0);
 };
 
-run().catch((err) => {
+run().catch(async (err) => {
   console.error('[seed] failed:', err);
+  await closePool().catch(() => {});
   process.exit(1);
 });

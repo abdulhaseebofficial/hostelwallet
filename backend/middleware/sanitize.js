@@ -1,14 +1,13 @@
 /**
- * Strips MongoDB query operators out of anything the client sends.
+ * Strips operator-shaped keys out of anything the client sends.
  *
- * Without this, a JSON body like `{"email": {"$ne": null}}` reaches a Mongoose
- * query as an operator rather than a value. Individual routes here happen to
- * validate their inputs, but that is a property of each route rather than of
- * the app - one new endpoint that forwards req.body into a query would be a
- * login bypass. This closes the whole class centrally.
- *
- * Keys starting with `$` are operators; keys containing `.` reach into nested
- * paths. Both are removed and the removal is logged.
+ * This was written against MongoDB, where a body like `{"email": {"$ne": null}}`
+ * reached the query as an operator and was a login bypass. On Postgres every
+ * query is parameterised, so that exact attack is gone - but the middleware is
+ * kept because it still rejects object-shaped values in fields the code reads
+ * as strings, and no legitimate field in this app starts with `$` or contains
+ * a `.`. It costs one pass over the body and closes a whole class of surprises
+ * centrally rather than route by route.
  */
 
 const isPlainObject = (value) =>

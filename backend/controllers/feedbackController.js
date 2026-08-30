@@ -1,4 +1,4 @@
-const Feedback = require('../models/Feedback');
+const feedbackRepo = require('../db/feedback');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendMail } = require('../utils/mailer');
 const { DEVELOPER, FEEDBACK_TYPES } = require('../config/constants');
@@ -14,13 +14,7 @@ const { DEVELOPER, FEEDBACK_TYPES } = require('../config/constants');
 const submitFeedback = asyncHandler(async (req, res) => {
   const { type, rating, message, page } = req.body;
 
-  const feedback = await Feedback.create({
-    userId: req.user._id,
-    type: type || 'General',
-    rating: rating || undefined,
-    message: message.trim(),
-    page,
-  });
+  let feedback = await feedbackRepo.create(req.user._id, { type, rating, message, page });
 
   try {
     const result = await sendMail({
@@ -39,8 +33,7 @@ const submitFeedback = asyncHandler(async (req, res) => {
     });
 
     if (result.delivered) {
-      feedback.emailed = true;
-      await feedback.save();
+      feedback = await feedbackRepo.markEmailed(feedback._id);
     }
   } catch (error) {
     // Logged, never surfaced - the feedback itself was already stored.
@@ -64,7 +57,7 @@ const feedbackMeta = asyncHandler(async (req, res) => {
 
 /** GET /api/feedback/mine - what this student has already sent. */
 const myFeedback = asyncHandler(async (req, res) => {
-  const items = await Feedback.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(20).lean();
+  const items = await feedbackRepo.listForUser(req.user._id, 20);
   res.json({ success: true, data: { items } });
 });
 

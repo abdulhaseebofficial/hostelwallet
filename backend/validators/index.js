@@ -15,7 +15,9 @@ const {
 
 const CURRENCY_CODES = CURRENCIES.map((c) => c.code);
 
-const objectId = (name) => param(name).isMongoId().withMessage('Invalid id');
+// Ids are Postgres uuids. Anything else is rejected here rather than reaching
+// a query, where a malformed uuid would raise 22P02 and read as a 500.
+const idParam = (name) => param(name).isUUID().withMessage('Invalid id');
 
 const password = (field = 'password') =>
   body(field)
@@ -103,7 +105,7 @@ const expenseValidators = {
   ],
 
   update: [
-    objectId('id'),
+    idParam('id'),
     body('amount').optional().isFloat({ gt: 0 }).withMessage('Amount must be positive').toFloat(),
     body('category').optional().trim().notEmpty(),
     body('description').optional().trim().isLength({ max: 200 }),
@@ -122,7 +124,7 @@ const expenseValidators = {
     query('maxAmount').optional().isFloat({ min: 0 }).toFloat(),
   ],
 
-  byId: [objectId('id')],
+  byId: [idParam('id')],
 };
 
 /* ------------------------------- income ------------------------------ */
@@ -136,14 +138,14 @@ const incomeValidators = {
   ],
 
   update: [
-    objectId('id'),
+    idParam('id'),
     body('amount').optional().isFloat({ gt: 0 }).toFloat(),
     body('source').optional().isIn(INCOME_SOURCES),
     body('note').optional().trim().isLength({ max: 200 }),
     body('date').optional().isISO8601().toDate(),
   ],
 
-  byId: [objectId('id')],
+  byId: [idParam('id')],
 };
 
 /* -------------------------------- goals ------------------------------ */
@@ -159,7 +161,7 @@ const goalValidators = {
   ],
 
   update: [
-    objectId('id'),
+    idParam('id'),
     body('title').optional().trim().notEmpty().isLength({ max: 80 }),
     body('targetAmount').optional().isFloat({ gt: 0 }).toFloat(),
     body('deadline').optional({ nullable: true, checkFalsy: true }).isISO8601(),
@@ -168,7 +170,7 @@ const goalValidators = {
   ],
 
   contribute: [
-    objectId('id'),
+    idParam('id'),
     body('amount')
       .exists()
       .withMessage('Enter an amount')
@@ -181,7 +183,7 @@ const goalValidators = {
     body('note').optional().trim().isLength({ max: 200 }),
   ],
 
-  byId: [objectId('id')],
+  byId: [idParam('id')],
 };
 
 /* ------------------------------- budget ------------------------------ */
@@ -202,9 +204,9 @@ const budgetValidators = {
     body('year').optional().isInt({ min: 2000, max: 2200 }).toInt(),
   ],
 
-  update: [objectId('id'), body('limit').isFloat({ min: 0 }).withMessage('Limit cannot be negative').toFloat()],
+  update: [idParam('id'), body('limit').isFloat({ min: 0 }).withMessage('Limit cannot be negative').toFloat()],
 
-  byId: [objectId('id')],
+  byId: [idParam('id')],
 };
 
 /* --------------------------------- ai -------------------------------- */

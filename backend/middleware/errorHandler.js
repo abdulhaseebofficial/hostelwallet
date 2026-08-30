@@ -8,7 +8,7 @@ const notFound = (req, _res, next) => {
 
 /**
  * Single place where every error becomes a JSON response.
- * Mongoose / JWT errors are translated into friendly messages; unexpected
+ * Postgres / JWT errors are translated into friendly messages; unexpected
  * errors are logged in full but reported generically in production.
  */
 // eslint-disable-next-line no-unused-vars
@@ -17,27 +17,34 @@ const errorHandler = (err, req, res, _next) => {
   let message = err.message || 'Something went wrong';
   let details = err.details;
 
-  // Mongoose: bad ObjectId in a route param
-  if (err.name === 'CastError') {
-    statusCode = 400;
-    message = `Invalid ${err.path}: ${err.value}`;
-  }
-
-  // Mongoose: schema validation failed
-  if (err.name === 'ValidationError') {
-    statusCode = 400;
-    message = 'Validation failed';
-    details = Object.values(err.errors).map((e) => ({ field: e.path, message: e.message }));
-  }
-
-  // Mongo: unique index violation
-  if (err.code === 11000) {
+  // Postgres: unique violation. The constraint name says which one, so the
+  // duplicate email keeps the friendly wording it has always had.
+  if (err.code === '23505') {
     statusCode = 409;
-    const field = Object.keys(err.keyValue || { field: 'value' })[0];
     message =
-      field === 'email'
+      err.constraint === 'users_email_key'
         ? 'An account with this email already exists'
-        : `Duplicate value for ${field}`;
+        : 'That value is already taken';
+  }
+
+  // Postgres: a malformed uuid or number reached a query. Repositories check
+  // ids before querying, so this is a bad body rather than a bad route param.
+  if (err.code === '22P02') {
+    statusCode = 400;
+    message = 'One of the values sent is not in a valid format';
+  }
+
+  // Postgres: a CHECK constraint rejected the row (a negative amount, a rating
+  // outside 1-5). The validators catch these first; this is the backstop.
+  if (err.code === '23514') {
+    statusCode = 400;
+    message = 'One of the values sent is out of range';
+  }
+
+  // Postgres: the referenced row is gone.
+  if (err.code === '23503') {
+    statusCode = 400;
+    message = 'That record no longer exists';
   }
 
   if (err.name === 'JsonWebTokenError') {

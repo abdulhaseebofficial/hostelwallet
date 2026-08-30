@@ -1,4 +1,5 @@
-const Budget = require('../models/Budget');
+const budgetsRepo = require('../db/budgets');
+const usersRepo = require('../db/users');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { currentPeriod, round2 } = require('../utils/calculations');
@@ -53,15 +54,11 @@ const upsertBudget = asyncHandler(async (req, res) => {
   const { category, limit } = req.body;
   const { month, year } = periodFrom({ ...req.query, ...req.body });
 
-  if (!req.user.allCategories().includes(category)) {
+  if (!usersRepo.allCategories(req.user).includes(category)) {
     throw ApiError.badRequest(`"${category}" is not one of your categories`);
   }
 
-  const budget = await Budget.findOneAndUpdate(
-    { userId: req.user._id, category, month, year },
-    { $set: { limit } },
-    { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
-  );
+  const budget = await budgetsRepo.upsert(req.user._id, category, limit, month, year);
 
   res.status(201).json({ success: true, message: `Budget set for ${category}`, data: { budget } });
 });
@@ -75,45 +72,38 @@ const bulkUpsert = asyncHandler(async (req, res) => {
   if (!Array.isArray(items) || items.length === 0) throw ApiError.badRequest('Send a list of budgets');
 
   const { month, year } = periodFrom({ ...req.query, ...req.body });
-  const allowed = req.user.allCategories();
+  const allowed = usersRepo.allCategories(req.user);
 
-  const operations = items
-    .filter((item) => allowed.includes(item.category) && Number(item.limit) >= 0)
-    .map((item) => ({
-      updateOne: {
-        filter: { userId: req.user._id, category: item.category, month, year },
-        update: { $set: { limit: Number(item.limit) } },
-        upsert: true,
-      },
-    }));
+  const valid = items.filter((item) => allowed.includes(item.category) && Number(item.limit) >= 0);
+  if (!valid.length) throw ApiError.badRequest('None of those categories are valid');
 
-  if (!operations.length) throw ApiError.badRequest('None of those categories are valid');
-
-  await Budget.bulkWrite(operations);
+  const written = await budgetsRepo.upsertMany(req.user._id, valid, month, year);
   const rows = await budgetProgress(req.user._id, month, year);
 
   res.json({
     success: true,
-    message: `Saved ${operations.length} budget limit(s)`,
+    message: `Saved ${written} budget limit(s)`,
     data: { month, year, items: rows },
   });
 });
 
 /** PUT /api/budget/:id */
 const updateBudget = asyncHandler(async (req, res) => {
-  const budget = await Budget.findOne({ _id: req.params.id, userId: req.user._id });
-  if (!budget) throw ApiError.notFound('Budget not found');
+  const existing = await budgetsRepo.findById(req.params.id, req.user._id);
+  if (!existing) throw ApiError.notFound('Budget not found');
 
-  if (req.body.limit !== undefined) budget.limit = req.body.limit;
-  await budget.save();
+  const budget =
+    req.body.limit === undefined
+      ? existing
+      : await budgetsRepo.update(req.params.id, req.user._id, req.body.limit);
 
   res.json({ success: true, message: 'Budget updated', data: { budget } });
 });
 
 /** DELETE /api/budget/:id */
 const deleteBudget = asyncHandler(async (req, res) => {
-  const budget = await Budget.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
-  if (!budget) throw ApiError.notFound('Budget not found');
+  const removed = await budgetsRepo.remove(req.params.id, req.user._id);
+  if (!removed) throw ApiError.notFound('Budget not found');
   res.json({ success: true, message: 'Budget removed', data: { id: req.params.id } });
 });
 

@@ -1,6 +1,7 @@
 const PDFDocument = require('pdfkit');
-const Expense = require('../models/Expense');
-const Income = require('../models/Income');
+const expensesRepo = require('../db/expenses');
+const incomeRepo = require('../db/income');
+const analytics = require('../db/analytics');
 const asyncHandler = require('../utils/asyncHandler');
 const { buildSnapshot, MONTH_NAMES } = require('../services/analyticsService');
 const {
@@ -29,25 +30,17 @@ const monthlyReport = asyncHandler(async (req, res) => {
   const [snapshot, prevSnapshot, biggest, incomeRows] = await Promise.all([
     buildSnapshot(req.user, period),
     buildSnapshot(req.user, prev),
-    Expense.findOne({
-      userId: req.user._id,
-      date: { $gte: startOfMonth(period.year, period.month), $lte: endOfMonth(period.year, period.month) },
-    })
-      .sort({ amount: -1 })
-      .lean(),
-    Income.aggregate([
-      {
-        $match: {
-          userId: req.user._id,
-          date: {
-            $gte: startOfMonth(period.year, period.month),
-            $lte: endOfMonth(period.year, period.month),
-          },
-        },
-      },
-      { $group: { _id: '$source', total: { $sum: '$amount' } } },
-      { $sort: { total: -1 } },
-    ]),
+    analytics.topExpenses(
+      req.user._id,
+      startOfMonth(period.year, period.month),
+      endOfMonth(period.year, period.month),
+      1
+    ),
+    incomeRepo.totalsBySource(
+      req.user._id,
+      startOfMonth(period.year, period.month),
+      endOfMonth(period.year, period.month)
+    ),
   ]);
 
   // Category-by-category movement between the two months.
@@ -84,8 +77,8 @@ const monthlyReport = asyncHandler(async (req, res) => {
       breakdown: snapshot.breakdown,
       trend: snapshot.trend,
       highestCategory: snapshot.breakdown[0] || null,
-      biggestExpense: biggest || null,
-      incomeBySource: incomeRows.map((r) => ({ source: r._id, amount: round2(r.total) })),
+      biggestExpense: biggest[0] || null,
+      incomeBySource: incomeRows.map((r) => ({ source: r.source, amount: round2(r.total) })),
 
       comparison: {
         previousLabel: prevSnapshot.monthLabel,
@@ -137,7 +130,7 @@ const exportReport = asyncHandler(async (req, res) => {
 
   const [snapshot, expenses] = await Promise.all([
     buildSnapshot(req.user, period),
-    Expense.find({ userId: req.user._id, date: { $gte: from, $lte: to } }).sort({ date: 1 }).lean(),
+    expensesRepo.listForRange(req.user._id, from, to),
   ]);
 
   const cur = req.user.currency;

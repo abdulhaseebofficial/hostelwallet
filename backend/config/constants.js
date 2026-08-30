@@ -61,6 +61,9 @@ const DEVELOPER = {
   linkedin: 'https://www.linkedin.com/in/abdulhaseebkashmiri/',
 };
 
+/** The emoji a goal gets when the student does not pick one. */
+const DEFAULT_GOAL_ICON = '🎯';
+
 /** What a piece of feedback is about. */
 const FEEDBACK_TYPES = ['General', 'Bug', 'Feature request', 'Design', 'Praise'];
 
@@ -73,5 +76,6 @@ module.exports = {
   NOTIFICATION_TYPES,
   FALLBACK_BUDGET_SPLIT,
   DEVELOPER,
+  DEFAULT_GOAL_ICON,
   FEEDBACK_TYPES,
 };

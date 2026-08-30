@@ -90,7 +90,7 @@ reaches the browser.
 |---|---|
 | Frontend | React 18 (Vite), Tailwind CSS, React Router, Recharts, Axios, React Hook Form + Zod, React Hot Toast, lucide-react |
 | Backend | Node.js, Express, JWT (access + refresh), bcryptjs, express-validator, Helmet, CORS, morgan, express-rate-limit |
-| Database | MongoDB with Mongoose |
+| Database | Postgres (Neon), queried with `pg` and parameterised SQL |
 | AI | Claude API via `@anthropic-ai/sdk`, server-side only, with an automatic model fallback chain |
 | Jobs | node-cron for recurring expenses and daily alert checks |
 | Export | pdfkit (PDF) and a hand-rolled CSV writer |
@@ -104,8 +104,9 @@ reaches the browser.
 
 ### Prerequisites
 - Node.js 18 or newer
-- A MongoDB database — local (`mongodb://127.0.0.1:27017/hostelwallet`) or a free
-  [MongoDB Atlas](https://www.mongodb.com/atlas) cluster
+- A Postgres database. The quickest route is [Neon](https://neon.tech) via the
+  Vercel Marketplace (`vercel integration add neon`), which provisions one and
+  sets `DATABASE_URL` for you; any Postgres 14+ will do
 - Optional: an [Anthropic API key](https://console.anthropic.com/settings/keys)
   for the AI advisor
 
@@ -129,7 +130,7 @@ Then edit `backend/.env`:
 PORT=5000
 NODE_ENV=development
 CLIENT_URL=http://localhost:5173
-MONGO_URI=mongodb://127.0.0.1:27017/hostelwallet
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 
 # Generate real secrets: node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 JWT_ACCESS_SECRET=...
@@ -189,7 +190,7 @@ The login screen has a **Try the demo account** button that fills these in.
 ## Testing
 
 ```bash
-npm run dev      # the API and MongoDB must be running
+npm run dev      # the API must be running and DATABASE_URL set
 npm run qa       # 102 checks against the live stack
 ```
 
@@ -426,7 +427,7 @@ Set these in **Vercel → Settings → Environment Variables**, scoped to the
 
 | Variable | Value |
 |---|---|
-| `MONGO_URI` | Your Atlas connection string. **Skip this** if you add MongoDB Atlas from the Vercel Marketplace - it provisions a free cluster and sets `MONGODB_URI` itself, which the app also accepts |
+| `DATABASE_URL` | Your Postgres connection string. **Skip this** if you add Neon from the Vercel Marketplace - it provisions a free database and sets `DATABASE_URL` itself |
 | `JWT_ACCESS_SECRET` | `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
 | `JWT_REFRESH_SECRET` | Same command again — it must **differ** from the access secret |
 | `NODE_ENV` | `production` |
@@ -459,10 +460,11 @@ telling you one of the three required variables above is not set.
 - `NODE_ENV=production` — this switches the refresh cookie to
   `secure: true; sameSite: none` so it survives the cross-site hop
 
-**Database → MongoDB Atlas**
-- Create a free M0 cluster, add a database user, allow your host's IP
-  (`0.0.0.0/0` for Render's dynamic IPs), and paste the connection string into
-  `MONGO_URI`
+**Database → Neon (or any Postgres)**
+- On Vercel, `vercel integration add neon` provisions one and sets
+  `DATABASE_URL` for you. Elsewhere, create a database and paste its connection
+  string into `DATABASE_URL` - the schema is applied automatically on first
+  connect, or run `npm run migrate --prefix backend` yourself
 
 ---
 

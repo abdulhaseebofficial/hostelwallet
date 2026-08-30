@@ -4,13 +4,14 @@
  * The dashboard, the reports page, the notification generator and the AI
  * advisor all consume the same `snapshot` object, so a number shown on screen
  * is always the same number the AI reasoned about.
+ *
+ * The SQL itself lives in db/analytics.js; what is left here is the shaping,
+ * the zero-filling and the derived figures.
  */
 
-const mongoose = require('mongoose');
-const Expense = require('../models/Expense');
-const Income = require('../models/Income');
-const Goal = require('../models/Goal');
-const Budget = require('../models/Budget');
+const analytics = require('../db/analytics');
+const budgetsRepo = require('../db/budgets');
+const goalsRepo = require('../db/goals');
 const {
   startOfMonth,
   endOfMonth,
@@ -27,68 +28,34 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const oid = (id) => new mongoose.Types.ObjectId(String(id));
-
 /**
- * The server's own UTC offset, e.g. "+05:30".
+ * The server's own UTC offset in minutes, e.g. 330 for +05:30.
  *
  * Everything in utils/calculations.js does its date arithmetic in the server's
- * local timezone (startOfMonth, endOfMonth, day numbers). Passing the same
- * offset to Mongo's $dateToString makes the database group days exactly the way
- * this process counts them, so the zero-filled trend never drifts by a day.
- * Set the TZ environment variable on the host to control which timezone that is
- * (Render and Railway default to UTC).
+ * local timezone (startOfMonth, endOfMonth, day numbers). Grouping the trend by
+ * the same offset makes the database count days exactly the way this process
+ * does, so the zero-filled series never drifts by a day. Set the TZ environment
+ * variable on the host to control which timezone that is (Vercel defaults UTC).
  */
-const serverUtcOffset = () => {
-  const minutes = -new Date().getTimezoneOffset();
-  const sign = minutes >= 0 ? '+' : '-';
-  const abs = Math.abs(minutes);
-  return `${sign}${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`;
-};
+const serverOffsetMinutes = () => -new Date().getTimezoneOffset();
 
 /** Total expenses grouped by category for a date range. */
-const categoryTotals = async (userId, from, to) => {
-  const rows = await Expense.aggregate([
-    { $match: { userId: oid(userId), date: { $gte: from, $lte: to } } },
-    { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
-    { $sort: { total: -1 } },
-  ]);
-  return shapeCategoryTotals(rows);
-};
+const categoryTotals = async (userId, from, to) =>
+  shapeCategoryTotals(await analytics.categoryTotals(userId, from, to));
 
 /** Total expenses for a date range. */
-const totalSpent = async (userId, from, to) => {
-  const [row] = await Expense.aggregate([
-    { $match: { userId: oid(userId), date: { $gte: from, $lte: to } } },
-    { $group: { _id: null, total: { $sum: '$amount' } } },
-  ]);
-  return round2(row ? row.total : 0);
-};
+const totalSpent = async (userId, from, to) => round2(await analytics.totalSpent(userId, from, to));
 
 /** Total logged income for a date range. */
-const totalIncome = async (userId, from, to) => {
-  const [row] = await Income.aggregate([
-    { $match: { userId: oid(userId), date: { $gte: from, $lte: to } } },
-    { $group: { _id: null, total: { $sum: '$amount' } } },
-  ]);
-  return round2(row ? row.total : 0);
-};
+const totalIncome = async (userId, from, to) =>
+  round2(await analytics.totalIncome(userId, from, to));
 
 /**
  * Day-by-day spend for a range, with zero-filled gaps so the line chart does
  * not jump over days with no spending.
  */
 const dailyTrend = async (userId, from, to) => {
-  const rows = await Expense.aggregate([
-    { $match: { userId: oid(userId), date: { $gte: from, $lte: to } } },
-    {
-      $group: {
-        _id: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: serverUtcOffset() } },
-        total: { $sum: '$amount' },
-      },
-    },
-    { $sort: { _id: 1 } },
-  ]);
+  const rows = await analytics.dailyTotals(userId, from, to, serverOffsetMinutes());
 
   const byDay = Object.fromEntries(rows.map((r) => [r._id, round2(r.total)]));
   const out = [];
@@ -108,7 +75,7 @@ const budgetProgress = async (userId, month, year) => {
   const from = startOfMonth(year, month);
   const to = endOfMonth(year, month);
   const [budgets, { byCategory }] = await Promise.all([
-    Budget.find({ userId, month, year }).lean(),
+    budgetsRepo.listForPeriod(userId, month, year),
     categoryTotals(userId, from, to),
   ]);
 
@@ -134,9 +101,9 @@ const budgetProgress = async (userId, month, year) => {
  * The canonical monthly picture of one student's money.
  *
  * Income rule: `monthlyIncome` on the profile is the *planned* pocket money.
- * The Income collection holds what actually arrived. If anything was logged
- * this month we trust the logged figure, otherwise we fall back to the plan.
- * Both values are returned so the UI can show either.
+ * The income table holds what actually arrived. If anything was logged this
+ * month we trust the logged figure, otherwise we fall back to the plan. Both
+ * values are returned so the UI can show either.
  */
 const buildSnapshot = async (user, period = currentPeriod()) => {
   const { month, year } = period;
@@ -154,9 +121,9 @@ const buildSnapshot = async (user, period = currentPeriod()) => {
       categoryTotals(user._id, from, to),
       dailyTrend(user._id, from, to),
       budgetProgress(user._id, month, year),
-      Goal.find({ userId: user._id, isCompleted: false }).sort({ deadline: 1 }).limit(5).lean(),
+      goalsRepo.listOpen(user._id, 5),
       totalSpent(user._id, prevFrom, prevTo),
-      Expense.countDocuments({ userId: user._id, date: { $gte: from, $lte: to } }),
+      analytics.countExpenses(user._id, from, to),
     ]);
 
   const plannedIncome = round2(user.monthlyIncome || 0);

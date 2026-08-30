@@ -1,11 +1,11 @@
-const User = require('../models/User');
+const usersRepo = require('../db/users');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { verifyAccessToken } = require('../utils/generateToken');
 
 /**
  * Verifies the `Authorization: Bearer <accessToken>` header and attaches the
- * user document to `req.user`. Every route below /api that touches user data
+ * user record to `req.user`. Every route below /api that touches user data
  * must sit behind this.
  */
 const protect = asyncHandler(async (req, _res, next) => {
@@ -25,7 +25,7 @@ const protect = asyncHandler(async (req, _res, next) => {
 
   if (payload.type !== 'access') throw ApiError.unauthorized('Invalid token type');
 
-  const user = await User.findById(payload.sub);
+  const user = await usersRepo.findById(payload.sub);
   if (!user) throw ApiError.unauthorized('This account no longer exists');
 
   req.user = user;

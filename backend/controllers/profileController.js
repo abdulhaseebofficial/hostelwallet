@@ -1,24 +1,24 @@
-const User = require('../models/User');
-const Expense = require('../models/Expense');
-const Income = require('../models/Income');
-const Goal = require('../models/Goal');
-const Budget = require('../models/Budget');
-const Notification = require('../models/Notification');
-const ChatMessage = require('../models/ChatMessage');
+const usersRepo = require('../db/users');
+const expensesRepo = require('../db/expenses');
+const incomeRepo = require('../db/income');
+const goalsRepo = require('../db/goals');
+const budgetsRepo = require('../db/budgets');
+const chatRepo = require('../db/chatMessages');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
-const { DEFAULT_CATEGORIES } = require('../config/constants');
+const { DEFAULT_CATEGORIES, DEFAULT_GOAL_ICON } = require('../config/constants');
 const { REFRESH_COOKIE, refreshCookieOptions } = require('../utils/generateToken');
 
 /** PUT /api/profile */
 const updateProfile = asyncHandler(async (req, res) => {
   const allowed = ['name', 'monthlyIncome', 'currency', 'university', 'hostelName', 'theme'];
+  const patch = {};
   allowed.forEach((field) => {
-    if (req.body[field] !== undefined) req.user[field] = req.body[field];
+    if (req.body[field] !== undefined) patch[field] = req.body[field];
   });
 
-  await req.user.save();
-  res.json({ success: true, message: 'Profile updated', data: { user: req.user.toJSON() } });
+  const user = await usersRepo.updateProfile(req.user._id, patch);
+  res.json({ success: true, message: 'Profile updated', data: { user: usersRepo.toPublicUser(user) } });
 });
 
 /**
@@ -28,28 +28,28 @@ const updateProfile = asyncHandler(async (req, res) => {
 const completeOnboarding = asyncHandler(async (req, res) => {
   const { monthlyIncome, currency, university, hostelName, goal } = req.body;
 
-  req.user.monthlyIncome = monthlyIncome || 0;
-  if (currency) req.user.currency = currency;
-  if (university !== undefined) req.user.university = university;
-  if (hostelName !== undefined) req.user.hostelName = hostelName;
-  req.user.onboardingCompleted = true;
-  await req.user.save();
+  const user = await usersRepo.updateProfile(req.user._id, {
+    monthlyIncome: monthlyIncome || 0,
+    currency: currency || undefined,
+    university: university === undefined ? undefined : university,
+    hostelName: hostelName === undefined ? undefined : hostelName,
+    onboardingCompleted: true,
+  });
 
   let createdGoal = null;
   if (goal && goal.title && goal.targetAmount) {
-    createdGoal = await Goal.create({
-      userId: req.user._id,
+    createdGoal = await goalsRepo.create(req.user._id, {
       title: goal.title,
       targetAmount: goal.targetAmount,
-      deadline: goal.deadline || undefined,
-      icon: goal.icon || '\uD83C\uDFAF',
+      deadline: goal.deadline || null,
+      icon: goal.icon || DEFAULT_GOAL_ICON,
     });
   }
 
   res.json({
     success: true,
     message: 'You are all set!',
-    data: { user: req.user.toJSON(), goal: createdGoal },
+    data: { user: usersRepo.toPublicUser(user), goal: createdGoal },
   });
 });
 
@@ -60,7 +60,7 @@ const getCategories = asyncHandler(async (req, res) => {
     data: {
       defaults: DEFAULT_CATEGORIES,
       custom: req.user.customCategories,
-      all: req.user.allCategories(),
+      all: usersRepo.allCategories(req.user),
     },
   });
 });
@@ -70,16 +70,17 @@ const addCategory = asyncHandler(async (req, res) => {
   const name = String(req.body.name || '').trim();
   if (!name) throw ApiError.badRequest('Category name is required');
 
-  const existing = req.user.allCategories().map((c) => c.toLowerCase());
+  const existing = usersRepo.allCategories(req.user).map((c) => c.toLowerCase());
   if (existing.includes(name.toLowerCase())) throw ApiError.conflict('That category already exists');
 
-  req.user.customCategories.push(name);
-  await req.user.save();
+  const user = await usersRepo.updateProfile(req.user._id, {
+    customCategories: [...req.user.customCategories, name],
+  });
 
   res.status(201).json({
     success: true,
     message: `Added "${name}"`,
-    data: { all: req.user.allCategories() },
+    data: { all: usersRepo.allCategories(user) },
   });
 });
 
@@ -91,17 +92,22 @@ const deleteCategory = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Built-in categories cannot be removed');
   }
 
-  const inUse = await Expense.countDocuments({ userId: req.user._id, category: name });
+  const inUse = await expensesRepo.countByCategory(req.user._id, name);
   if (inUse > 0) {
     throw ApiError.badRequest(
       `${inUse} expense(s) still use "${name}". Move them to another category first.`
     );
   }
 
-  req.user.customCategories = req.user.customCategories.filter((c) => c !== name);
-  await req.user.save();
+  const user = await usersRepo.updateProfile(req.user._id, {
+    customCategories: req.user.customCategories.filter((c) => c !== name),
+  });
 
-  res.json({ success: true, message: `Removed "${name}"`, data: { all: req.user.allCategories() } });
+  res.json({
+    success: true,
+    message: `Removed "${name}"`,
+    data: { all: usersRepo.allCategories(user) },
+  });
 });
 
 /**
@@ -111,17 +117,17 @@ const deleteCategory = asyncHandler(async (req, res) => {
 const exportData = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const [expenses, incomes, goals, budgets, chat] = await Promise.all([
-    Expense.find({ userId }).sort({ date: -1 }).lean(),
-    Income.find({ userId }).sort({ date: -1 }).lean(),
-    Goal.find({ userId }).lean(),
-    Budget.find({ userId }).lean(),
-    ChatMessage.find({ userId }).sort({ createdAt: 1 }).lean(),
+    expensesRepo.listAllForUser(userId),
+    incomeRepo.listAllForUser(userId),
+    goalsRepo.list(userId, 'all'),
+    budgetsRepo.listAllForUser(userId),
+    chatRepo.listForUser(userId, 1000),
   ]);
 
   res.setHeader('Content-Disposition', 'attachment; filename="hostelwallet-data.json"');
   res.json({
     exportedAt: new Date().toISOString(),
-    profile: req.user.toJSON(),
+    profile: usersRepo.toPublicUser(req.user),
     expenses,
     incomes,
     goals,
@@ -136,23 +142,15 @@ const exportData = asyncHandler(async (req, res) => {
  * a stolen access token alone cannot wipe an account.
  */
 const deleteAccount = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select('+password');
+  const user = await usersRepo.findById(req.user._id, { withPassword: true });
   const { password } = req.body;
 
-  if (!password || !(await user.comparePassword(password))) {
+  if (!password || !(await usersRepo.comparePassword(password, user.password))) {
     throw ApiError.badRequest('Enter your current password to confirm deletion');
   }
 
-  const userId = req.user._id;
-  await Promise.all([
-    Expense.deleteMany({ userId }),
-    Income.deleteMany({ userId }),
-    Goal.deleteMany({ userId }),
-    Budget.deleteMany({ userId }),
-    Notification.deleteMany({ userId }),
-    ChatMessage.deleteMany({ userId }),
-  ]);
-  await User.findByIdAndDelete(userId);
+  // Every child table is ON DELETE CASCADE, so this takes the data with it.
+  await usersRepo.remove(req.user._id);
 
   res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions(), maxAge: undefined });
   res.json({ success: true, message: 'Your account and all data have been deleted' });

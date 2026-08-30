@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const User = require('../models/User');
+const usersRepo = require('../db/users');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendMail } = require('../utils/mailer');
@@ -27,31 +27,21 @@ const DUMMY_HASH = bcrypt.hashSync('hostelwallet-timing-equaliser', 12);
 
 /**
  * Issues both tokens and records the refresh token's hash against the user.
- * Expired entries are pruned on the way through.
+ * Expired entries are pruned by the repository on the way through.
  */
 const issueSession = async (res, user) => {
   const accessToken = signAccessToken(user._id);
   const refreshToken = signRefreshToken(user._id, user.tokenVersion);
 
-  const now = Date.now();
-  const live = (user.refreshTokens || []).filter((t) => new Date(t.expiresAt).getTime() > now);
-  live.push({
-    tokenHash: hashToken(refreshToken),
-    createdAt: new Date(),
-    expiresAt: new Date(now + REFRESH_MS),
-  });
-  user.refreshTokens = live.slice(-MAX_SESSIONS);
-  await user.save({ validateBeforeSave: false });
+  await usersRepo.addRefreshToken(
+    user._id,
+    hashToken(refreshToken),
+    new Date(Date.now() + REFRESH_MS),
+    MAX_SESSIONS
+  );
 
   res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions());
   return accessToken;
-};
-
-/** Signs every device out by forgetting all stored refresh tokens. */
-const revokeAllSessions = async (user) => {
-  user.refreshTokens = [];
-  user.tokenVersion += 1;
-  await user.save({ validateBeforeSave: false });
 };
 
 /**
@@ -61,10 +51,10 @@ const revokeAllSessions = async (user) => {
 const register = asyncHandler(async (req, res) => {
   const { name, email, password, monthlyIncome, currency, university, hostelName } = req.body;
 
-  const exists = await User.findOne({ email: email.toLowerCase() });
+  const exists = await usersRepo.findByEmail(email);
   if (exists) throw ApiError.conflict('An account with this email already exists');
 
-  const user = await User.create({
+  const user = await usersRepo.create({
     name,
     email,
     password,
@@ -79,25 +69,25 @@ const register = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     message: `Welcome to HostelWallet, ${user.name.split(' ')[0]}!`,
-    data: { user: user.toJSON(), accessToken },
+    data: { user: usersRepo.toPublicUser(user), accessToken },
   });
 });
 
 /**
  * POST /api/auth/login
- * The password field is `select: false`, so it has to be requested explicitly.
+ * The password hash is only fetched where it is actually compared.
  */
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+  const user = await usersRepo.findByEmail(email, { withPassword: true });
 
   // Same message AND the same amount of work for "no such user" and "wrong
   // password": comparing against a dummy hash when the account is missing keeps
   // the response time flat, so this cannot be used to discover which emails are
   // registered.
   const passwordMatches = user
-    ? await user.comparePassword(password)
+    ? await usersRepo.comparePassword(password, user.password)
     : await bcrypt.compare(password, DUMMY_HASH);
 
   if (!user || !passwordMatches) {
@@ -109,7 +99,7 @@ const login = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: `Welcome back, ${user.name.split(' ')[0]}!`,
-    data: { user: user.toJSON(), accessToken },
+    data: { user: usersRepo.toPublicUser(user), accessToken },
   });
 });
 
@@ -129,7 +119,7 @@ const refresh = asyncHandler(async (req, res) => {
     throw ApiError.unauthorized('Refresh token expired, please log in again');
   }
 
-  const user = await User.findById(payload.sub);
+  const user = await usersRepo.findById(payload.sub);
   if (!user) throw ApiError.unauthorized('Account not found');
 
   // tokenVersion is bumped on password change / reset.
@@ -142,20 +132,20 @@ const refresh = asyncHandler(async (req, res) => {
   // which means someone replayed an old token - most likely a stolen cookie.
   // The safe response is to drop every session for this account.
   const presented = hashToken(token);
-  const known = (user.refreshTokens || []).some((t) => t.tokenHash === presented);
+  const known = await usersRepo.hasRefreshToken(user._id, presented);
 
   if (!known) {
     console.warn(`[security] refresh token replay for user ${user._id}; revoking all sessions`);
-    await revokeAllSessions(user);
+    await usersRepo.revokeAllSessions(user._id);
     res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions(), maxAge: undefined });
     throw ApiError.unauthorized('This session is no longer valid, please log in again');
   }
 
   // Consume the presented token, then hand out a fresh one.
-  user.refreshTokens = user.refreshTokens.filter((t) => t.tokenHash !== presented);
+  await usersRepo.removeRefreshToken(user._id, presented);
 
   const accessToken = await issueSession(res, user);
-  res.json({ success: true, data: { user: user.toJSON(), accessToken } });
+  res.json({ success: true, data: { user: usersRepo.toPublicUser(user), accessToken } });
 });
 
 /**
@@ -170,12 +160,7 @@ const logout = asyncHandler(async (req, res) => {
   if (token) {
     try {
       const payload = verifyRefreshToken(token);
-      const user = await User.findById(payload.sub);
-      if (user) {
-        const presented = hashToken(token);
-        user.refreshTokens = (user.refreshTokens || []).filter((t) => t.tokenHash !== presented);
-        await user.save({ validateBeforeSave: false });
-      }
+      await usersRepo.removeRefreshToken(payload.sub, hashToken(token));
     } catch {
       // An expired or forged cookie needs no clean-up; just clear it below.
     }
@@ -187,7 +172,7 @@ const logout = asyncHandler(async (req, res) => {
 
 /** GET /api/auth/me */
 const me = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: { user: req.user.toJSON() } });
+  res.json({ success: true, data: { user: usersRepo.toPublicUser(req.user) } });
 });
 
 /**
@@ -197,7 +182,7 @@ const me = asyncHandler(async (req, res) => {
  */
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  const user = await User.findOne({ email: email.toLowerCase() });
+  const user = await usersRepo.findByEmail(email);
 
   const genericResponse = {
     success: true,
@@ -206,8 +191,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
   if (!user) return res.json(genericResponse);
 
-  const rawToken = user.createPasswordResetToken();
-  await user.save({ validateBeforeSave: false });
+  const rawToken = await usersRepo.createPasswordResetToken(user._id);
 
   const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').split(',')[0].trim();
   const resetUrl = `${clientUrl}/reset-password/${rawToken}`;
@@ -240,25 +224,17 @@ const forgotPassword = asyncHandler(async (req, res) => {
 const resetPassword = asyncHandler(async (req, res) => {
   const hashed = crypto.createHash('sha256').update(req.params.token).digest('hex');
 
-  const user = await User.findOne({
-    resetPasswordToken: hashed,
-    resetPasswordExpires: { $gt: Date.now() },
-  }).select('+resetPasswordToken +resetPasswordExpires');
+  const found = await usersRepo.findByResetToken(hashed);
+  if (!found) throw ApiError.badRequest('This reset link is invalid or has expired');
 
-  if (!user) throw ApiError.badRequest('This reset link is invalid or has expired');
-
-  user.password = req.body.password;
-  user.resetPasswordToken = undefined;
-  user.resetPasswordExpires = undefined;
-  user.tokenVersion += 1;   // invalidate every existing session
-  user.refreshTokens = [];  // and forget every stored refresh token
-  await user.save();
+  // Clears the reset token, bumps the version and drops every stored session.
+  const user = await usersRepo.setPassword(found._id, req.body.password);
 
   const accessToken = await issueSession(res, user);
   res.json({
     success: true,
     message: 'Password updated. You are logged in.',
-    data: { user: user.toJSON(), accessToken },
+    data: { user: usersRepo.toPublicUser(user), accessToken },
   });
 });
 
@@ -266,15 +242,13 @@ const resetPassword = asyncHandler(async (req, res) => {
 const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
-  const user = await User.findById(req.user._id).select('+password');
-  if (!(await user.comparePassword(currentPassword))) {
+  const current = await usersRepo.findById(req.user._id, { withPassword: true });
+  if (!(await usersRepo.comparePassword(currentPassword, current.password))) {
     throw ApiError.badRequest('Your current password is not correct');
   }
 
-  user.password = newPassword;
-  user.tokenVersion += 1;   // log every other device out
-  user.refreshTokens = [];  // including their stored refresh tokens
-  await user.save();
+  // Logs every other device out, including their stored refresh tokens.
+  const user = await usersRepo.setPassword(current._id, newPassword);
 
   const accessToken = await issueSession(res, user);
   res.json({ success: true, message: 'Password changed', data: { accessToken } });

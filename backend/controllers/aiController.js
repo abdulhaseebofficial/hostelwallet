@@ -1,4 +1,4 @@
-const ChatMessage = require('../models/ChatMessage');
+const chatRepo = require('../db/chatMessages');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const aiService = require('../services/aiService');
@@ -67,10 +67,10 @@ const chat = asyncHandler(async (req, res) => {
 
   const [snapshot, history] = await Promise.all([
     buildSnapshot(req.user, currentPeriod()),
-    ChatMessage.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(20).lean(),
+    chatRepo.recentForUser(req.user._id, 20),
   ]);
 
-  const orderedHistory = history.reverse().map((m) => ({ role: m.role, content: m.content }));
+  const orderedHistory = history.map((m) => ({ role: m.role, content: m.content }));
 
   const result = await aiService.chat({
     user: req.user,
@@ -80,9 +80,9 @@ const chat = asyncHandler(async (req, res) => {
   });
 
   // Persist both sides so the conversation survives a refresh.
-  await ChatMessage.insertMany([
-    { userId: req.user._id, role: 'user', content: message },
-    { userId: req.user._id, role: 'assistant', content: result.reply },
+  await chatRepo.addMany(req.user._id, [
+    { role: 'user', content: message },
+    { role: 'assistant', content: result.reply },
   ]);
 
   res.json({ success: true, data: result });
@@ -91,17 +91,14 @@ const chat = asyncHandler(async (req, res) => {
 /** GET /api/ai/chat/history */
 const chatHistory = asyncHandler(async (req, res) => {
   const limit = Math.min(100, Number(req.query.limit) || 50);
-  const messages = await ChatMessage.find({ userId: req.user._id })
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .lean();
+  const messages = await chatRepo.recentForUser(req.user._id, limit);
 
-  res.json({ success: true, data: { messages: messages.reverse() } });
+  res.json({ success: true, data: { messages } });
 });
 
 /** DELETE /api/ai/chat - start a fresh conversation. */
 const clearChat = asyncHandler(async (req, res) => {
-  await ChatMessage.deleteMany({ userId: req.user._id });
+  await chatRepo.clear(req.user._id);
   res.json({ success: true, message: 'Conversation cleared' });
 });
 

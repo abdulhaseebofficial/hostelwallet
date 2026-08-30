@@ -1,17 +1,16 @@
-const Notification = require('../models/Notification');
+const notificationsRepo = require('../db/notifications');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { runChecksForUser } = require('../services/notificationService');
 
 /** GET /api/notifications - newest first, with the unread count. */
 const listNotifications = asyncHandler(async (req, res) => {
-  const limit = Math.min(50, Number(req.query.limit) || 20);
-  const filter = { userId: req.user._id };
-  if (req.query.unread === 'true') filter.isRead = false;
-
   const [items, unreadCount] = await Promise.all([
-    Notification.find(filter).sort({ createdAt: -1 }).limit(limit).lean(),
-    Notification.countDocuments({ userId: req.user._id, isRead: false }),
+    notificationsRepo.list(req.user._id, {
+      limit: req.query.limit,
+      unreadOnly: req.query.unread === 'true',
+    }),
+    notificationsRepo.unreadCount(req.user._id),
   ]);
 
   res.json({ success: true, data: { items, unreadCount } });
@@ -25,34 +24,27 @@ const runChecks = asyncHandler(async (req, res) => {
 
 /** PATCH /api/notifications/:id/read */
 const markRead = asyncHandler(async (req, res) => {
-  const notification = await Notification.findOneAndUpdate(
-    { _id: req.params.id, userId: req.user._id },
-    { $set: { isRead: true } },
-    { new: true }
-  );
+  const notification = await notificationsRepo.markRead(req.params.id, req.user._id);
   if (!notification) throw ApiError.notFound('Notification not found');
   res.json({ success: true, data: { notification } });
 });
 
 /** PATCH /api/notifications/read-all */
 const markAllRead = asyncHandler(async (req, res) => {
-  const result = await Notification.updateMany(
-    { userId: req.user._id, isRead: false },
-    { $set: { isRead: true } }
-  );
-  res.json({ success: true, message: 'All caught up', data: { updated: result.modifiedCount } });
+  const updated = await notificationsRepo.markAllRead(req.user._id);
+  res.json({ success: true, message: 'All caught up', data: { updated } });
 });
 
 /** DELETE /api/notifications/:id */
 const deleteNotification = asyncHandler(async (req, res) => {
-  const removed = await Notification.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
+  const removed = await notificationsRepo.remove(req.params.id, req.user._id);
   if (!removed) throw ApiError.notFound('Notification not found');
   res.json({ success: true, data: { id: req.params.id } });
 });
 
 /** DELETE /api/notifications - clear the whole tray. */
 const clearAll = asyncHandler(async (req, res) => {
-  await Notification.deleteMany({ userId: req.user._id });
+  await notificationsRepo.clearAll(req.user._id);
   res.json({ success: true, message: 'Notifications cleared' });
 });
 

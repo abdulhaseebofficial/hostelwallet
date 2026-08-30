@@ -1,30 +1,32 @@
-const mongoose = require('mongoose');
-const { mongoUri, MONGO_URI_MISSING } = require('./mongoUri');
+const { query } = require('../db/pool');
+const { migrate } = require('../db/migrate');
+const { databaseUrl, DATABASE_URL_MISSING } = require('./databaseUrl');
 
 /**
- * Connect to MongoDB.
- * Mongoose 8 buffers queries until the connection is ready, but we still fail
- * fast on start-up so a bad connection string is obvious instead of silently
- * hanging.
+ * Open the database and make sure the schema is there.
+ *
+ * The schema is applied on connect rather than as a separate deploy step
+ * because there is no deploy step to hang it off: Vercel imports the app and
+ * serves it. db/schema.sql is idempotent and takes an advisory lock, so this
+ * costs one cheap round trip on a cold start and is safe when several
+ * functions start at once.
  */
 const connectDB = async () => {
-  const uri = mongoUri();
-  if (!uri) {
-    throw new Error(MONGO_URI_MISSING);
+  if (!databaseUrl()) {
+    throw new Error(DATABASE_URL_MISSING);
   }
 
-  mongoose.set('strictQuery', true);
+  const [{ db, version }] = await query(
+    `SELECT current_database() AS db, current_setting('server_version') AS version`
+  );
 
-  const conn = await mongoose.connect(uri, {
-    serverSelectionTimeoutMS: 10000,
-  });
+  await migrate();
 
-  console.log(`[db] MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);
-
-  mongoose.connection.on('error', (err) => console.error('[db] connection error:', err.message));
-  mongoose.connection.on('disconnected', () => console.warn('[db] disconnected'));
-
-  return conn;
+  // The host comes from the URL rather than inet_server_addr(), which reports
+  // the pooler's own loopback address and tells you nothing useful.
+  const host = new URL(databaseUrl()).host;
+  console.log(`[db] Postgres ${version} connected: ${host}/${db}`);
+  return { db, host };
 };
 
 module.exports = connectDB;
