@@ -1,0 +1,14 @@
+# Local-only directories that must never be uploaded with a deployment.
+#
+# .mongodb-data is the old local MongoDB's data directory, left over from before
+# the move to Postgres. It is hundreds of megabytes and, while mongod is
+# running, its files are locked - which makes `vercel deploy` fail outright with
+# "EBUSY: resource busy or locked".
+
+.mongodb-data/
+.vscode/
+coverage/
+*.log
+
+# Built by the deployment itself, not shipped to it.
+frontend/dist/

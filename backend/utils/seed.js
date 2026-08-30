@@ -117,13 +117,18 @@ const run = async () => {
     date: new Date(thisMonth.y, thisMonth.m - 1, 3, 10, 0),
     isRecurring: true,
     recurringFrequency: 'monthly',
-    nextRunAt: new Date(thisMonth.y, thisMonth.m, 3),
+    nextRunAt: new Date(thisMonth.y, thisMonth.m, 3, 10),
   });
 
+  // Midday, not midnight. These land on the 1st, and the app does its month
+  // arithmetic in the server's local timezone while the row stores an instant -
+  // so a midnight-on-the-1st row seeded from UTC+5 falls into the previous
+  // month once the server reading it runs in UTC, and the month's income
+  // silently goes missing. Noon survives a shift either way.
   for (const row of [
-    { amount: 25000, source: 'Pocket Money', note: 'Sent from home', date: new Date(last.y, last.m - 1, 1) },
-    { amount: 25000, source: 'Pocket Money', note: 'Sent from home', date: new Date(thisMonth.y, thisMonth.m - 1, 1) },
-    { amount: 3000, source: 'Part-time Job', note: 'Weekend tuition', date: new Date(thisMonth.y, thisMonth.m - 1, 12) },
+    { amount: 25000, source: 'Pocket Money', note: 'Sent from home', date: new Date(last.y, last.m - 1, 1, 12) },
+    { amount: 25000, source: 'Pocket Money', note: 'Sent from home', date: new Date(thisMonth.y, thisMonth.m - 1, 1, 12) },
+    { amount: 3000, source: 'Part-time Job', note: 'Weekend tuition', date: new Date(thisMonth.y, thisMonth.m - 1, 12, 12) },
   ]) {
     await incomeRepo.create(user._id, row);
   }
