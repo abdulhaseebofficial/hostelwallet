@@ -4,7 +4,7 @@
  *
  * Run with:  npm run qa
  */
-const { ok, section, heading, call, report, requireApi, bailIfRateLimited } = require('./helpers');
+const { ok, section, heading, call, report, requireApi, bailIfRateLimited, currentCookie } = require('./helpers');
 
 (async () => {
   await requireApi();
@@ -13,7 +13,7 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited } = re
   let r = await call('POST', '/auth/login', { email: 'demo@hostelwallet.app', password: 'demo1234' });
   bailIfRateLimited(r);
   ok('login with the demo account', r.status === 200 && !!r.data?.data?.accessToken, `-> ${r.status}`);
-  const token = r.data?.data?.accessToken;
+  let token = r.data?.data?.accessToken;
   const me = r.data?.data?.user;
   ok('login returns the user', !!me?.email, me?.email);
 
@@ -31,6 +31,27 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited } = re
 
   r = await call('GET', '/auth/me', undefined, token + 'tampered');
   ok('a tampered token is rejected', r.status === 401, `-> ${r.status}`);
+
+  section('SESSION ROTATION');
+  // The refresh cookie is rotated on every use. The jar holds the newest one,
+  // so the login cookie captured here is deliberately the superseded one.
+  const staleCookie = currentCookie();
+  r = await call('POST', '/auth/refresh');
+  ok('refresh mints a new access token', r.status === 200 && !!r.data?.data?.accessToken, `-> ${r.status}`);
+  const rotatedCookie = currentCookie();
+  ok('and rotates the cookie', rotatedCookie !== staleCookie, 'cookie changed');
+
+  // Replaying the superseded token is what a stolen cookie looks like, so the
+  // server drops every session for the account rather than serving it.
+  r = await call('POST', '/auth/refresh', undefined, undefined, { cookie: staleCookie });
+  ok('a replayed refresh token is rejected', r.status === 401, `-> ${r.status}`);
+  r = await call('POST', '/auth/refresh', undefined, undefined, { cookie: rotatedCookie });
+  ok('and the replay revoked the live session too', r.status === 401, `-> ${r.status}`);
+
+  // Sign back in so the rest of the suite has a working session.
+  r = await call('POST', '/auth/login', { email: 'demo@hostelwallet.app', password: 'demo1234' });
+  ok('signing back in works', r.status === 200, `-> ${r.status}`);
+  token = r.data?.data?.accessToken;
 
   section('DASHBOARD');
   r = await call('GET', '/dashboard/summary', undefined, token);
@@ -126,6 +147,22 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited } = re
   r = await call('POST', '/ai/advice', { tipCount: 4 }, token);
   ok('advice', r.status === 200 && Array.isArray(r.data?.data?.tips) && r.data.data.tips.length > 0,
     `${(r.data?.data?.tips || []).length} tips`);
+
+  // This endpoint reached for a method that stopped existing when the data
+  // layer moved to Postgres, and nothing noticed because nothing asked.
+  r = await call('POST', '/ai/suggest-budget', {}, token);
+  ok('suggest a budget', r.status === 200, `-> ${r.status}`);
+  ok('the plan covers categories', Array.isArray(r.data?.data?.categories),
+    `${(r.data?.data?.categories || []).length} rows`);
+  ok('the plan reports what it allocated', typeof r.data?.data?.allocated === 'number',
+    `allocated=${r.data?.data?.allocated}`);
+
+  r = await call('GET', '/ai/weekly-summary', undefined, token);
+  ok('weekly summary', r.status === 200 && !!r.data?.data?.summary, `-> ${r.status}`);
+
+  r = await call('GET', '/ai/chat/history', undefined, token);
+  ok('chat history loads', r.status === 200 && Array.isArray(r.data?.data?.messages),
+    `${(r.data?.data?.messages || []).length} messages`);
 
   section('NOTIFICATIONS');
   r = await call('GET', '/notifications', undefined, token);

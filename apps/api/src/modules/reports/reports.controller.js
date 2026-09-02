@@ -1,22 +1,16 @@
-const PDFDocument = require('pdfkit');
-const expensesRepo = require('../expenses/expenses.repository');
-const incomeRepo = require('../income/income.repository');
-const analytics = require('../analytics/analytics.repository');
-const asyncHandler = require('../../shared/http/asyncHandler');
-const { buildSnapshot, MONTH_NAMES } = require('../analytics/analytics.service');
-const {
-  currentPeriod,
-  previousPeriod,
-  startOfMonth,
-  endOfMonth,
-  changePercent,
-  round2,
-} = require('../../shared/utils/calculations');
+/**
+ * Report endpoints.
+ *
+ * The month's numbers come from reports.service; what is left here is turning
+ * them into a JSON body, a spreadsheet or a PDF, which is presentation and
+ * belongs next to the response.
+ */
 
-const periodFrom = (query) => {
-  const now = currentPeriod();
-  return { month: Number(query.month) || now.month, year: Number(query.year) || now.year };
-};
+const PDFDocument = require('pdfkit');
+const reports = require('./reports.service');
+const { toCsv } = require('./reports.csv');
+const asyncHandler = require('../../shared/http/asyncHandler');
+const { round2 } = require('../../shared/utils/calculations');
 
 /**
  * GET /api/reports/monthly
@@ -24,114 +18,17 @@ const periodFrom = (query) => {
  * comparison, budget adherence and the biggest single expense.
  */
 const monthlyReport = asyncHandler(async (req, res) => {
-  const period = periodFrom(req.query);
-  const prev = previousPeriod(period);
-
-  const [snapshot, prevSnapshot, biggest, incomeRows] = await Promise.all([
-    buildSnapshot(req.user, period),
-    buildSnapshot(req.user, prev),
-    analytics.topExpenses(
-      req.user._id,
-      startOfMonth(period.year, period.month),
-      endOfMonth(period.year, period.month),
-      1
-    ),
-    incomeRepo.totalsBySource(
-      req.user._id,
-      startOfMonth(period.year, period.month),
-      endOfMonth(period.year, period.month)
-    ),
-  ]);
-
-  // Category-by-category movement between the two months.
-  const categories = new Set([
-    ...Object.keys(snapshot.byCategory),
-    ...Object.keys(prevSnapshot.byCategory),
-  ]);
-  const categoryComparison = [...categories]
-    .map((category) => {
-      const current = snapshot.byCategory[category] || 0;
-      const previous = prevSnapshot.byCategory[category] || 0;
-      return { category, current, previous, change: round2(current - previous), changePercent: changePercent(current, previous) };
-    })
-    .sort((a, b) => b.current - a.current);
-
-  const overBudget = snapshot.budgets.filter((b) => b.status === 'over');
-
-  res.json({
-    success: true,
-    data: {
-      period,
-      monthLabel: snapshot.monthLabel,
-      currency: req.user.currency,
-
-      totals: {
-        income: snapshot.income,
-        spent: snapshot.totalSpent,
-        saved: snapshot.remaining,
-        savingsRate: snapshot.income > 0 ? Math.round((snapshot.remaining / snapshot.income) * 100) : 0,
-        dailyAverage: snapshot.dailyAverage,
-        transactionCount: snapshot.expenseCount,
-      },
-
-      breakdown: snapshot.breakdown,
-      trend: snapshot.trend,
-      highestCategory: snapshot.breakdown[0] || null,
-      biggestExpense: biggest[0] || null,
-      incomeBySource: incomeRows.map((r) => ({ source: r.source, amount: round2(r.total) })),
-
-      comparison: {
-        previousLabel: prevSnapshot.monthLabel,
-        previousSpent: prevSnapshot.totalSpent,
-        change: round2(snapshot.totalSpent - prevSnapshot.totalSpent),
-        changePercent: changePercent(snapshot.totalSpent, prevSnapshot.totalSpent),
-        categories: categoryComparison,
-      },
-
-      budgets: snapshot.budgets,
-      overBudget,
-      goals: snapshot.goals,
-    },
-  });
+  const data = await reports.monthly(req.user, req.query);
+  res.json({ success: true, data });
 });
-
-/**
- * Escapes one CSV cell.
- *
- * Quoting alone is not enough: Excel and Sheets treat a leading =, +, - or @ as
- * a FORMULA, so an expense described as `=HYPERLINK("http://evil","hi")` would
- * execute when the student opens their own export. Prefixing a single quote
- * neutralises it while still displaying the original text.
- */
-const FORMULA_TRIGGERS = ['=', '+', '-', '@', String.fromCharCode(9), String.fromCharCode(13)];
-
-const csvCell = (value) => {
-  let text = value === null || value === undefined ? '' : String(value);
-
-  if (text.length && FORMULA_TRIGGERS.includes(text[0])) {
-    text = `'${text}`;
-  }
-
-  return '"' + text.split('"').join('""') + '"';
-};
-
-const toCsv = (rows) => rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
 
 /**
  * GET /api/reports/export?format=csv|pdf&month=&year=
  * Streams the month as a spreadsheet or a printable one-page PDF.
  */
 const exportReport = asyncHandler(async (req, res) => {
-  const period = periodFrom(req.query);
   const format = (req.query.format || 'csv').toLowerCase();
-  const from = startOfMonth(period.year, period.month);
-  const to = endOfMonth(period.year, period.month);
-  const label = `${MONTH_NAMES[period.month - 1]}-${period.year}`;
-
-  const [snapshot, expenses] = await Promise.all([
-    buildSnapshot(req.user, period),
-    expensesRepo.listForRange(req.user._id, from, to),
-  ]);
+  const { snapshot, expenses, label } = await reports.exportData(req.user, req.query);
 
   const cur = req.user.currency;
 

@@ -1,9 +1,11 @@
 /**
- * notificationService — creates the in-app alerts shown in the bell menu.
+ * The alerts shown in the bell menu, and the tray they sit in.
  *
  * Every alert carries a `dedupeKey` and the table has a unique index on
  * (user_id, dedupe_key), so re-running the checks is safe: a duplicate insert
- * is swallowed instead of spamming the student with the same warning.
+ * is swallowed instead of spamming the student with the same warning. That is
+ * what lets the dashboard, an expense write and a cron tick all call
+ * runChecksForUser without coordinating.
  */
 
 const notificationsRepo = require('./notifications.repository');
@@ -138,6 +140,35 @@ const runChecksForUser = async (user) => {
   return results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value);
 };
 
+/* ----------------------------- the tray ----------------------------- */
+
+const ApiError = require('../../shared/errors/ApiError');
+
+/** Newest first, with the unread count the bell badge shows. */
+const listForUser = async (userId, { limit, unreadOnly } = {}) => {
+  const [items, unreadCount] = await Promise.all([
+    notificationsRepo.list(userId, { limit, unreadOnly }),
+    notificationsRepo.unreadCount(userId),
+  ]);
+  return { items, unreadCount };
+};
+
+const markRead = async (id, userId) => {
+  const notification = await notificationsRepo.markRead(id, userId);
+  if (!notification) throw ApiError.notFound('Notification not found');
+  return notification;
+};
+
+const markAllRead = (userId) => notificationsRepo.markAllRead(userId);
+
+const remove = async (id, userId) => {
+  const removed = await notificationsRepo.remove(id, userId);
+  if (!removed) throw ApiError.notFound('Notification not found');
+  return id;
+};
+
+const clearAll = (userId) => notificationsRepo.clearAll(userId);
+
 module.exports = {
   push,
   checkOverspending,
@@ -145,4 +176,9 @@ module.exports = {
   checkLogReminder,
   checkBillsDue,
   runChecksForUser,
+  listForUser,
+  markRead,
+  markAllRead,
+  remove,
+  clearAll,
 };

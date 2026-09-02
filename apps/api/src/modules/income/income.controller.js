@@ -1,68 +1,38 @@
-const incomeRepo = require('./income.repository');
-const ApiError = require('../../shared/errors/ApiError');
+/**
+ * Income endpoints. Request in, JSON out; the rules are in income.service.
+ */
+
+const income = require('./income.service');
 const asyncHandler = require('../../shared/http/asyncHandler');
-const { round2, startOfMonth, endOfMonth, currentPeriod } = require('../../shared/utils/calculations');
 
 /** GET /api/income - optional ?month=&year= or ?from=&to= */
 const listIncome = asyncHandler(async (req, res) => {
-  const { items, total } = await incomeRepo.list(req.user._id, req.query);
+  const { items, total } = await income.list(req.user._id, req.query);
   res.json({ success: true, data: { items, total } });
 });
 
-/** GET /api/income/summary - this month's income vs expense at a glance. */
+/** GET /api/income/summary - this month's income vs plan at a glance. */
 const incomeSummary = asyncHandler(async (req, res) => {
-  const { month, year } = currentPeriod();
-  const from = startOfMonth(year, month);
-  const to = endOfMonth(year, month);
-
-  const bySource = await incomeRepo.totalsBySource(req.user._id, from, to);
-  const total = bySource.reduce((sum, r) => sum + r.total, 0);
-
-  res.json({
-    success: true,
-    data: {
-      month,
-      year,
-      total: round2(total),
-      plannedIncome: round2(req.user.monthlyIncome || 0),
-      bySource: bySource.map((r) => ({ source: r.source, amount: round2(r.total) })),
-    },
-  });
+  const data = await income.summary(req.user);
+  res.json({ success: true, data });
 });
 
 /** POST /api/income */
 const createIncome = asyncHandler(async (req, res) => {
-  const { amount, source, note, date } = req.body;
-
-  const income = await incomeRepo.create(req.user._id, {
-    amount,
-    source: source || 'Pocket Money',
-    note: note || '',
-    date: date ? new Date(date) : new Date(),
-  });
-
-  res.status(201).json({ success: true, message: 'Income added', data: { income } });
+  const entry = await income.create(req.user._id, req.body);
+  res.status(201).json({ success: true, message: 'Income added', data: { income: entry } });
 });
 
 /** PUT /api/income/:id */
 const updateIncome = asyncHandler(async (req, res) => {
-  const existing = await incomeRepo.findById(req.params.id, req.user._id);
-  if (!existing) throw ApiError.notFound('Income entry not found');
-
-  const patch = {};
-  ['amount', 'source', 'note', 'date'].forEach((f) => {
-    if (req.body[f] !== undefined) patch[f] = req.body[f];
-  });
-
-  const income = await incomeRepo.update(req.params.id, req.user._id, patch);
-  res.json({ success: true, message: 'Income updated', data: { income } });
+  const entry = await income.update(req.params.id, req.user._id, req.body);
+  res.json({ success: true, message: 'Income updated', data: { income: entry } });
 });
 
 /** DELETE /api/income/:id */
 const deleteIncome = asyncHandler(async (req, res) => {
-  const removed = await incomeRepo.remove(req.params.id, req.user._id);
-  if (!removed) throw ApiError.notFound('Income entry not found');
-  res.json({ success: true, message: 'Income deleted', data: { id: req.params.id } });
+  const id = await income.remove(req.params.id, req.user._id);
+  res.json({ success: true, message: 'Income deleted', data: { id } });
 });
 
 module.exports = { listIncome, incomeSummary, createIncome, updateIncome, deleteIncome };

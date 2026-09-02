@@ -155,46 +155,6 @@ const findByResetToken = async (hashedToken) => {
  * Records a refresh token hash, drops the ones that have expired, and keeps at
  * most `max` devices signed in by discarding the oldest.
  */
-const addRefreshToken = async (userId, tokenHash, expiresAt, max) =>
-  transaction(async (tx) => {
-    await tx.query(
-      `DELETE FROM refresh_tokens WHERE user_id = $1 AND expires_at <= now()`,
-      [userId]
-    );
-    await tx.query(
-      `INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)
-       ON CONFLICT (token_hash) DO NOTHING`,
-      [userId, tokenHash, expiresAt]
-    );
-    await tx.query(
-      `DELETE FROM refresh_tokens
-        WHERE user_id = $1
-          AND id NOT IN (
-            SELECT id FROM refresh_tokens WHERE user_id = $1
-             ORDER BY created_at DESC LIMIT $2
-          )`,
-      [userId, max]
-    );
-  });
-
-/** True when this exact token is still one the server recognises. */
-const hasRefreshToken = async (userId, tokenHash) => {
-  const row = await queryOne(
-    `SELECT 1 AS ok FROM refresh_tokens
-      WHERE user_id = $1 AND token_hash = $2 AND expires_at > now()`,
-    [userId, tokenHash]
-  );
-  return Boolean(row);
-};
-
-const removeRefreshToken = async (userId, tokenHash) => {
-  await query(`DELETE FROM refresh_tokens WHERE user_id = $1 AND token_hash = $2`, [
-    userId,
-    tokenHash,
-  ]);
-};
-
-/** Signs every device out: forget the stored tokens and invalidate the rest. */
 const revokeAllSessions = async (userId) =>
   transaction(async (tx) => {
     await tx.query(`DELETE FROM refresh_tokens WHERE user_id = $1`, [userId]);
@@ -250,9 +210,6 @@ module.exports = {
   setPassword,
   createPasswordResetToken,
   findByResetToken,
-  addRefreshToken,
-  hasRefreshToken,
-  removeRefreshToken,
   revokeAllSessions,
   updateProfile,
   allCategories,
