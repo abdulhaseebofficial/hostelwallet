@@ -1,6 +1,6 @@
 const express = require('express');
 const ctrl = require('./notifications.controller');
-const { protect } = require('../../shared/middleware/authenticate');
+const { protect } = require('../auth/auth.middleware');
 
 const router = express.Router();
 

@@ -9,8 +9,12 @@
  */
 
 const notificationsRepo = require('./notifications.repository');
-const expensesRepo = require('../expenses/expenses.repository');
-const goalsRepo = require('../goals/goals.repository');
+const lazyModule = require('../../shared/modules/lazyModule');
+
+// goals raises a notification when one is reached, and writing an expense
+// refreshes these very checks, so both edges are deferred.
+const expenses = lazyModule(() => require('../expenses/expenses.service'));
+const goals = lazyModule(() => require('../goals/goals.service'));
 const { budgetProgress } = require('../analytics/analytics.service');
 const { currentPeriod, daysBetween } = require('../../shared/utils/calculations');
 
@@ -59,7 +63,7 @@ const checkOverspending = async (user) => {
 
 /** Remind about goals whose deadline is within a week (and overdue ones). */
 const checkGoalDeadlines = async (user) => {
-  const goals = await goalsRepo.findDueSoon(user._id, 7);
+  const goals = await goals.listDueSoon(user._id, 7);
 
   const created = [];
   for (const goal of goals) {
@@ -87,7 +91,7 @@ const checkLogReminder = async (user) => {
   const twoDaysAgo = new Date();
   twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
 
-  const recent = await expensesRepo.countCreatedSince(user._id, twoDaysAgo);
+  const recent = await expenses.countCreatedSince(user._id, twoDaysAgo);
   if (recent > 0) return [];
 
   const n = await push(user._id, {
@@ -105,7 +109,7 @@ const checkBillsDue = async (user) => {
   const soon = new Date();
   soon.setDate(soon.getDate() + 3);
 
-  const bills = await expensesRepo.findBillsDueBy(user._id, soon);
+  const bills = await expenses.findBillsDueBy(user._id, soon);
 
   const created = [];
   for (const bill of bills) {

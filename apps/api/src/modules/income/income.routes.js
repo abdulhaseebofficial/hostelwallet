@@ -1,7 +1,7 @@
 const express = require('express');
 const ctrl = require('./income.controller');
 const validate = require('../../shared/middleware/validate');
-const { protect } = require('../../shared/middleware/authenticate');
+const { protect } = require('../auth/auth.middleware');
 const incomeValidators = require('./income.validator');
 
 const router = express.Router();

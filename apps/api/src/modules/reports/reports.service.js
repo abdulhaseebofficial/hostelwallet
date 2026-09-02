@@ -7,10 +7,10 @@
  * controller, so this file has nothing to say about HTTP.
  */
 
-const incomeRepo = require('../income/income.repository');
-const expensesRepo = require('../expenses/expenses.repository');
-const analyticsRepo = require('../analytics/analytics.repository');
-const { buildSnapshot, MONTH_NAMES } = require('../analytics/analytics.service');
+const income = require('../income/income.service');
+const expenses = require('../expenses/expenses.service');
+const analytics = require('../analytics/analytics.service');
+const { buildSnapshot, MONTH_NAMES } = analytics;
 const {
   currentPeriod,
   previousPeriod,
@@ -63,8 +63,8 @@ const monthly = async (user, query) => {
   const [snapshot, prevSnapshot, biggest, incomeRows] = await Promise.all([
     buildSnapshot(user, period),
     buildSnapshot(user, prev),
-    analyticsRepo.topExpenses(user._id, from, to, 1),
-    incomeRepo.totalsBySource(user._id, from, to),
+    analytics.topExpenses(user._id, from, to, 1),
+    income.totalsBySource(user._id, from, to),
   ]);
 
   return {
@@ -111,15 +111,15 @@ const exportData = async (user, query) => {
   const from = startOfMonth(period.year, period.month);
   const to = endOfMonth(period.year, period.month);
 
-  const [snapshot, expenses] = await Promise.all([
+  const [snapshot, rows] = await Promise.all([
     buildSnapshot(user, period),
-    expensesRepo.listForRange(user._id, from, to),
+    expenses.listForRange(user._id, from, to),
   ]);
 
   return {
     period,
     snapshot,
-    expenses,
+    expenses: rows,
     label: `${MONTH_NAMES[period.month - 1]}-${period.year}`,
   };
 };

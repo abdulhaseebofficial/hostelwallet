@@ -72,4 +72,20 @@ const remove = async (id, userId) => {
   return id;
 };
 
-module.exports = { list, summary, create, update, remove };
+/* ------------------- for other modules to build on ------------------ */
+
+/** Income grouped by source over a range, for the monthly report. */
+const totalsBySource = (userId, from, to) => incomeRepo.totalsBySource(userId, from, to);
+
+/** Every income entry, for the data export. */
+const listAllForUser = (userId) => incomeRepo.listAllForUser(userId);
+
+module.exports = {
+  totalsBySource,
+  listAllForUser,
+  list,
+  summary,
+  create,
+  update,
+  remove,
+};

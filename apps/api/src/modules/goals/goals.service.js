@@ -137,4 +137,26 @@ const remove = async (id, userId) => {
   return id;
 };
 
-module.exports = { list, getById, create, update, contribute, remove, decorate };
+/* ------------------- for other modules to build on ------------------ */
+
+/** The nearest open goals, for the dashboard strip. */
+const listOpen = (userId, limit) => goalsRepo.listOpen(userId, limit);
+
+/** Goals whose deadline falls inside `days`, for the alert rules. */
+const listDueSoon = (userId, days) => goalsRepo.findDueSoon(userId, days);
+
+/** Every goal, undecorated, for the data export. */
+const listAllForUser = (userId) => goalsRepo.list(userId, 'all');
+
+module.exports = {
+  listOpen,
+  listDueSoon,
+  listAllForUser,
+  list,
+  getById,
+  create,
+  update,
+  contribute,
+  remove,
+  decorate,
+};

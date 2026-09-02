@@ -14,7 +14,6 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 
 const authRepo = require('./auth.repository');
-const usersRepo = require('../users/users.repository');
 const users = require('../users/users.service');
 const ApiError = require('../../shared/errors/ApiError');
 const { sendMail } = require('../../infrastructure/email/mailer');
@@ -63,10 +62,10 @@ const issueSession = async (user) => {
 const register = async (input) => {
   const { name, email, password, monthlyIncome, currency, university, hostelName } = input;
 
-  const exists = await usersRepo.findByEmail(email);
+  const exists = await users.findByEmail(email);
   if (exists) throw ApiError.conflict('An account with this email already exists');
 
-  const user = await usersRepo.create({
+  const user = await users.createAccount({
     name,
     email,
     password,
@@ -90,7 +89,7 @@ const login = async (email, password) => {
   // keeps the response time flat, so this cannot be used to discover which
   // emails are registered.
   const passwordMatches = user
-    ? await usersRepo.comparePassword(password, user.password)
+    ? await users.comparePassword(password, user.password)
     : await bcrypt.compare(password, DUMMY_HASH);
 
   if (!user || !passwordMatches) {
@@ -134,7 +133,7 @@ const refresh = async (token) => {
 
   if (!known) {
     console.warn(`[security] refresh token replay for user ${user._id}; revoking all sessions`);
-    await usersRepo.revokeAllSessions(user._id);
+    await users.revokeAllSessions(user._id);
     const err = ApiError.unauthorized('This session is no longer valid, please log in again');
     err.clearRefreshCookie = true;
     throw err;
@@ -175,10 +174,10 @@ const logout = async (token) => {
  * not production" is not good enough, because an unset NODE_ENV satisfies it.
  */
 const forgotPassword = async (email) => {
-  const user = await usersRepo.findByEmail(email);
+  const user = await users.findByEmail(email);
   if (!user) return {};
 
-  const rawToken = await usersRepo.createPasswordResetToken(user._id);
+  const rawToken = await users.createPasswordResetToken(user._id);
 
   const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').split(',')[0].trim();
   const resetUrl = `${clientUrl}/reset-password/${rawToken}`;
@@ -205,11 +204,11 @@ const forgotPassword = async (email) => {
 const resetPassword = async (rawToken, newPassword) => {
   const hashed = crypto.createHash('sha256').update(rawToken).digest('hex');
 
-  const found = await usersRepo.findByResetToken(hashed);
+  const found = await users.findByResetToken(hashed);
   if (!found) throw ApiError.badRequest('This reset link is invalid or has expired');
 
   // Clears the reset token, bumps the version and drops every stored session.
-  const user = await usersRepo.setPassword(found._id, newPassword);
+  const user = await users.setPassword(found._id, newPassword);
 
   const session = await issueSession(user);
   return { user: users.toPublic(user), ...session };
@@ -218,11 +217,11 @@ const resetPassword = async (rawToken, newPassword) => {
 /** Settings page. Logs every other device out, including its refresh token. */
 const changePassword = async (userId, currentPassword, newPassword) => {
   const current = await users.findById(userId, { withPassword: true });
-  if (!(await usersRepo.comparePassword(currentPassword, current.password))) {
+  if (!(await users.comparePassword(currentPassword, current.password))) {
     throw ApiError.badRequest('Your current password is not correct');
   }
 
-  const user = await usersRepo.setPassword(current._id, newPassword);
+  const user = await users.setPassword(current._id, newPassword);
   const session = await issueSession(user);
   return { user: users.toPublic(user), ...session };
 };

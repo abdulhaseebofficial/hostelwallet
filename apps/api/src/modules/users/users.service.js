@@ -11,11 +11,15 @@
  */
 
 const usersRepo = require('./users.repository');
-const expensesRepo = require('../expenses/expenses.repository');
-const incomeRepo = require('../income/income.repository');
-const goalsRepo = require('../goals/goals.repository');
-const budgetsRepo = require('../budgets/budgets.repository');
-const chatRepo = require('../advisor/advisor.repository');
+const lazyModule = require('../../shared/modules/lazyModule');
+
+// Almost every feature asks users for the current account, so requiring
+// them here at load time would close a circle with each of them.
+const expenses = lazyModule(() => require('../expenses/expenses.service'));
+const income = lazyModule(() => require('../income/income.service'));
+const goals = lazyModule(() => require('../goals/goals.service'));
+const budgets = lazyModule(() => require('../budgets/budgets.service'));
+const advisor = lazyModule(() => require('../advisor/advisor.service'));
 const ApiError = require('../../shared/errors/ApiError');
 const { DEFAULT_CATEGORIES, DEFAULT_GOAL_ICON } = require('../../shared/constants');
 
@@ -55,7 +59,7 @@ const completeOnboarding = async (userId, body) => {
 
   let createdGoal = null;
   if (goal && goal.title && goal.targetAmount) {
-    createdGoal = await goalsRepo.create(userId, {
+    createdGoal = await goals.create(userId, {
       title: goal.title,
       targetAmount: goal.targetAmount,
       deadline: goal.deadline || null,
@@ -102,7 +106,7 @@ const removeCategory = async (user, rawName) => {
     throw ApiError.badRequest('Built-in categories cannot be removed');
   }
 
-  const inUse = await expensesRepo.countByCategory(user._id, name);
+  const inUse = await expenses.countByCategory(user._id, name);
   if (inUse > 0) {
     throw ApiError.badRequest(
       `${inUse} expense(s) still use "${name}". Move them to another category first.`
@@ -120,21 +124,23 @@ const removeCategory = async (user, rawName) => {
 
 /** Everything this student has, for a "download all my data" request. */
 const exportEverything = async (user) => {
-  const [expenses, incomes, goals, budgets, chat] = await Promise.all([
-    expensesRepo.listAllForUser(user._id),
-    incomeRepo.listAllForUser(user._id),
-    goalsRepo.list(user._id, 'all'),
-    budgetsRepo.listAllForUser(user._id),
-    chatRepo.listForUser(user._id, EXPORT_CHAT_LIMIT),
+  // Named apart from the modules they come from: destructuring straight into
+  // `expenses` and friends would shadow the imports the calls themselves use.
+  const [allExpenses, allIncome, allGoals, allBudgets, chat] = await Promise.all([
+    expenses.listAllForUser(user._id),
+    income.listAllForUser(user._id),
+    goals.listAllForUser(user._id),
+    budgets.listAllForUser(user._id),
+    advisor.exportChat(user._id, EXPORT_CHAT_LIMIT),
   ]);
 
   return {
     exportedAt: new Date().toISOString(),
     profile: toPublic(user),
-    expenses,
-    incomes,
-    goals,
-    budgets,
+    expenses: allExpenses,
+    incomes: allIncome,
+    goals: allGoals,
+    budgets: allBudgets,
     aiConversation: chat,
   };
 };
@@ -161,6 +167,33 @@ const deleteAccount = async (userId, password) => {
 /** The account behind an email, with the password hash, for auth to check. */
 const findCredentialsByEmail = (email) => usersRepo.findByEmail(email, { withPassword: true });
 
+/** Whether an email is taken, without pulling the hash. */
+const findByEmail = (email) => usersRepo.findByEmail(email);
+
+/** Creates the account itself. auth wraps this with session handling. */
+const createAccount = (input) => usersRepo.create(input);
+
+const comparePassword = (candidate, hash) => usersRepo.comparePassword(candidate, hash);
+
+/**
+ * Sets a new password, which also clears any reset token, bumps the account's
+ * token version and drops every stored session.
+ */
+const setPassword = (userId, password) => usersRepo.setPassword(userId, password);
+
+const createPasswordResetToken = (userId) => usersRepo.createPasswordResetToken(userId);
+
+const findByResetToken = (hashedToken) => usersRepo.findByResetToken(hashedToken);
+
+/**
+ * Invalidates every session for an account.
+ *
+ * Lives here rather than with auth because it deletes the session rows AND
+ * bumps this table's token_version in one transaction - splitting it across
+ * two modules would split the transaction.
+ */
+const revokeAllSessions = (userId) => usersRepo.revokeAllSessions(userId);
+
 const findById = (userId, options) => usersRepo.findById(userId, options);
 
 const allCategories = (user) => usersRepo.allCategories(user);
@@ -175,6 +208,13 @@ module.exports = {
   exportEverything,
   deleteAccount,
   findCredentialsByEmail,
+  findByEmail,
+  createAccount,
+  comparePassword,
+  setPassword,
+  createPasswordResetToken,
+  findByResetToken,
+  revokeAllSessions,
   findById,
   allCategories,
 };

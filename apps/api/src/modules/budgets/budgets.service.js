@@ -10,7 +10,7 @@
  */
 
 const budgetsRepo = require('./budgets.repository');
-const usersRepo = require('../users/users.repository');
+const users = require('../users/users.service');
 const ApiError = require('../../shared/errors/ApiError');
 const { currentPeriod, round2 } = require('../../shared/utils/calculations');
 const { budgetProgress } = require('../analytics/analytics.service');
@@ -25,7 +25,7 @@ const periodFrom = (source = {}) => {
 };
 
 const assertOwnCategory = (user, category) => {
-  if (!usersRepo.allCategories(user).includes(category)) {
+  if (!users.allCategories(user).includes(category)) {
     throw ApiError.badRequest(`"${category}" is not one of your categories`);
   }
 };
@@ -85,7 +85,7 @@ const setPlan = async (user, body, query) => {
   }
 
   const { month, year } = periodFrom({ ...query, ...body });
-  const allowed = usersRepo.allCategories(user);
+  const allowed = users.allCategories(user);
 
   const valid = items.filter(
     (item) => allowed.includes(item.category) && Number(item.limit) >= 0
@@ -113,4 +113,20 @@ const remove = async (id, userId) => {
   return id;
 };
 
-module.exports = { listForMonth, setLimit, setPlan, update, remove };
+/* ------------------- for other modules to build on ------------------ */
+
+/** The raw limits for a month. analytics joins these with real spend. */
+const listForPeriod = (userId, month, year) => budgetsRepo.listForPeriod(userId, month, year);
+
+/** Every limit this student has ever set, for the data export. */
+const listAllForUser = (userId) => budgetsRepo.listAllForUser(userId);
+
+module.exports = {
+  listForPeriod,
+  listAllForUser,
+  listForMonth,
+  setLimit,
+  setPlan,
+  update,
+  remove,
+};

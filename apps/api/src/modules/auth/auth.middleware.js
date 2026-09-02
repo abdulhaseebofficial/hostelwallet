@@ -1,7 +1,7 @@
-const usersRepo = require('../../modules/users/users.repository');
-const ApiError = require('../errors/ApiError');
-const asyncHandler = require('../http/asyncHandler');
-const { verifyAccessToken } = require('../../modules/auth/auth.tokens');
+const usersRepo = require('../users/users.service');
+const ApiError = require('../../shared/errors/ApiError');
+const asyncHandler = require('../../shared/http/asyncHandler');
+const { verifyAccessToken } = require('./auth.tokens');
 
 /**
  * Verifies the `Authorization: Bearer <accessToken>` header and attaches the

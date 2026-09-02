@@ -1,7 +1,7 @@
 const express = require('express');
 const ctrl = require('./feedback.controller');
 const validate = require('../../shared/middleware/validate');
-const { protect } = require('../../shared/middleware/authenticate');
+const { protect } = require('../auth/auth.middleware');
 const { feedbackLimiter } = require('../../shared/middleware/rateLimiter');
 const feedbackValidators = require('./feedback.validator');
 

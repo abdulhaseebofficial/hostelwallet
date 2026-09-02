@@ -1,7 +1,7 @@
 const express = require('express');
 const ctrl = require('./auth.controller');
 const validate = require('../../shared/middleware/validate');
-const { protect } = require('../../shared/middleware/authenticate');
+const { protect } = require('./auth.middleware');
 const { authLimiter } = require('../../shared/middleware/rateLimiter');
 const authValidators = require('./auth.validator');
 

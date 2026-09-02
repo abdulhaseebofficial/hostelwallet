@@ -1,7 +1,7 @@
 const express = require('express');
 const ctrl = require('./advisor.controller');
 const validate = require('../../shared/middleware/validate');
-const { protect } = require('../../shared/middleware/authenticate');
+const { protect } = require('../auth/auth.middleware');
 const { aiLimiter } = require('../../shared/middleware/rateLimiter');
 const aiValidators = require('./advisor.validator');
 

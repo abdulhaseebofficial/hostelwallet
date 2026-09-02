@@ -10,7 +10,7 @@
  * Both are safe to re-run.
  */
 
-const expensesRepo = require('../expenses/expenses.repository');
+const expenses = require('../expenses/expenses.service');
 const advisor = require('../advisor/advisor.service');
 const { buildSnapshot } = require('../analytics/analytics.service');
 const {
@@ -36,7 +36,7 @@ const summary = async (user, query) => {
 
   const [snapshot, recent] = await Promise.all([
     buildSnapshot(user, period),
-    expensesRepo.list(user._id, { limit: RECENT_EXPENSE_COUNT }),
+    expenses.listRecent(user._id, RECENT_EXPENSE_COUNT),
   ]);
 
   // Fire and forget: the student should not wait on the alert rules.

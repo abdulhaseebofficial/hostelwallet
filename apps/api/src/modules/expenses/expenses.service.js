@@ -11,7 +11,7 @@
  */
 
 const expensesRepo = require('./expenses.repository');
-const usersRepo = require('../users/users.repository');
+const users = require('../users/users.service');
 const ApiError = require('../../shared/errors/ApiError');
 const {
   firstRunAfter,
@@ -23,7 +23,7 @@ const DEFAULT_PAYMENT_METHOD = 'Cash';
 const DEFAULT_FREQUENCY = 'monthly';
 
 const assertOwnCategory = (user, category) => {
-  if (!usersRepo.allCategories(user).includes(category)) {
+  if (!users.allCategories(user).includes(category)) {
     throw ApiError.badRequest(`"${category}" is not one of your categories`);
   }
 };
@@ -125,4 +125,36 @@ const remove = async (id, userId) => {
   return id;
 };
 
-module.exports = { list, getById, create, update, remove };
+/* ------------------- for other modules to build on ------------------ */
+
+/** The newest few, without the recurring catch-up the list route does. */
+const listRecent = (userId, limit) => expensesRepo.list(userId, { limit });
+
+/** Everything in a date range, for a report or an export. */
+const listForRange = (userId, from, to) => expensesRepo.listForRange(userId, from, to);
+
+/** Every expense this student has, for the data export. */
+const listAllForUser = (userId) => expensesRepo.listAllForUser(userId);
+
+/** How many expenses still use a category, before it can be deleted. */
+const countByCategory = (userId, category) => expensesRepo.countByCategory(userId, category);
+
+/** How many were logged since a moment, for the "you have not logged" nudge. */
+const countCreatedSince = (userId, since) => expensesRepo.countCreatedSince(userId, since);
+
+/** Recurring bills falling due by a date, for the bill reminder. */
+const findBillsDueBy = (userId, when) => expensesRepo.findBillsDueBy(userId, when);
+
+module.exports = {
+  listRecent,
+  listForRange,
+  listAllForUser,
+  countByCategory,
+  countCreatedSince,
+  findBillsDueBy,
+  list,
+  getById,
+  create,
+  update,
+  remove,
+};
