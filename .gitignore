@@ -14,3 +14,8 @@ coverage/
 
 .vercel
 .env*
+
+# Connection strings handed over by hand - these carry a database password.
+supabase-url.txt
+anthropic-key.txt
+atlas-uri.txt
