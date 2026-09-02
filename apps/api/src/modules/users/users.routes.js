@@ -2,7 +2,7 @@ const express = require('express');
 const ctrl = require('./users.controller');
 const validate = require('../../shared/middleware/validate');
 const { protect } = require('../../shared/middleware/authenticate');
-const { profileValidators } = require('../../shared/validators');
+const profileValidators = require('./users.validator');
 
 const router = express.Router();
 

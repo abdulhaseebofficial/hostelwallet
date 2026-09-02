@@ -3,7 +3,7 @@ const ctrl = require('./advisor.controller');
 const validate = require('../../shared/middleware/validate');
 const { protect } = require('../../shared/middleware/authenticate');
 const { aiLimiter } = require('../../shared/middleware/rateLimiter');
-const { aiValidators } = require('../../shared/validators');
+const aiValidators = require('./advisor.validator');
 
 const router = express.Router();
 

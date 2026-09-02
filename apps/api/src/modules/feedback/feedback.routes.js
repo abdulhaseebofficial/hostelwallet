@@ -3,7 +3,7 @@ const ctrl = require('./feedback.controller');
 const validate = require('../../shared/middleware/validate');
 const { protect } = require('../../shared/middleware/authenticate');
 const { feedbackLimiter } = require('../../shared/middleware/rateLimiter');
-const { feedbackValidators } = require('../../shared/validators');
+const feedbackValidators = require('./feedback.validator');
 
 const router = express.Router();
 
