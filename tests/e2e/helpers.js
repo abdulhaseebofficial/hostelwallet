@@ -106,4 +106,13 @@ async function requireApi() {
 /** The refresh cookie the jar is currently holding. */
 const currentCookie = () => state.cookie;
 
-module.exports = { BASE, ok, section, heading, call, report, requireApi, bailIfRateLimited, currentCookie };
+module.exports = {
+  ok,
+  section,
+  heading,
+  call,
+  report,
+  requireApi,
+  bailIfRateLimited,
+  currentCookie,
+};

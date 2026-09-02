@@ -214,5 +214,4 @@ module.exports = {
   updateProfile,
   allCategories,
   remove,
-  PRIVATE,
 };

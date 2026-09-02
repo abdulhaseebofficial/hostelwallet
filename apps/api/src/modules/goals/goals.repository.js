@@ -198,5 +198,4 @@ module.exports = {
   contribute,
   remove,
   findDueSoon,
-  syncCompletion,
 };

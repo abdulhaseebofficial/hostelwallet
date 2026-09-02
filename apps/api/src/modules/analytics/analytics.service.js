@@ -217,7 +217,6 @@ module.exports = {
   categoryTotals,
   totalSpent,
   totalIncome,
-  dailyTrend,
   budgetProgress,
   buildSnapshot,
   buildWeeklySnapshot,

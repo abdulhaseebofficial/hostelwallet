@@ -6,7 +6,7 @@ import Sidebar, { MOBILE_NAV_ITEMS } from './Sidebar';
 import Footer from './Footer';
 import Modal from '../../shared/components/ui/Modal';
 import ExpenseForm from '../../features/expenses/components/ExpenseForm';
-import FeedbackModal from '../../features/feedback/components/FeedbackModal';
+import { FeedbackModal } from '../../features/feedback';
 import useCategories from '../../shared/hooks/useCategories';
 import useMutation from '../../shared/hooks/useMutation';
 import { notifyDataChanged } from '../../shared/hooks/useAsync';

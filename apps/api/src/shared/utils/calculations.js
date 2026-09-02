@@ -97,8 +97,6 @@ const changePercent = (current, previous) => {
 module.exports = {
   startOfMonth,
   endOfMonth,
-  startOfDay,
-  endOfDay,
   currentPeriod,
   previousPeriod,
   daysBetween,

@@ -22,9 +22,10 @@
     "qa": "npm run test:e2e",
     "qa:api": "node tests/e2e/api.test.js",
     "qa:settings": "node tests/e2e/settings.test.js",
-    "check": "npm run check:boundaries && npm run test:unit && npm run test:migrations && npm run test:e2e && npm run build",
+    "check": "npm run check:boundaries && npm run check:dead && npm run test:unit && npm run test:migrations && npm run test:e2e && npm run build",
     "test:unit": "node --test tests/unit/*.test.js",
-    "check:boundaries": "node scripts/check-boundaries.js"
+    "check:boundaries": "node scripts/check-boundaries.js",
+    "check:dead": "node scripts/find-dead-code.js"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"

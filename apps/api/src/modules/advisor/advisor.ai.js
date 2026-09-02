@@ -511,7 +511,6 @@ const fallbackBudget = ({ user, snapshot, categories }) => {
 module.exports = {
   isConfigured: ai.isConfigured,
   providerName: ai.providerName,
-  snapshotToText,
   getAdvice,
   chat,
   dailyTip,

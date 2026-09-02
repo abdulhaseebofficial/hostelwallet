@@ -175,10 +175,6 @@ const clearAll = (userId) => notificationsRepo.clearAll(userId);
 
 module.exports = {
   push,
-  checkOverspending,
-  checkGoalDeadlines,
-  checkLogReminder,
-  checkBillsDue,
   runChecksForUser,
   listForUser,
   markRead,

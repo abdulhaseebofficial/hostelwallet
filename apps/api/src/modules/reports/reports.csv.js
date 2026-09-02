@@ -31,4 +31,7 @@ const csvCell = (value) => {
 /** Rows of cells to a CSV document. */
 const toCsv = (rows) => rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
 
-module.exports = { csvCell, toCsv, FORMULA_TRIGGERS };
+module.exports = {
+  csvCell,
+  toCsv,
+};

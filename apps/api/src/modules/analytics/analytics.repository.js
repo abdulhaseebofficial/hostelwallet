@@ -71,19 +71,6 @@ const countExpenses = async (userId, from, to) => {
   return Number(row.n);
 };
 
-/** Spend per payment method for a range, biggest first. */
-const paymentMethodTotals = async (userId, from, to) => {
-  const rows = await query(
-    `SELECT payment_method AS _id, sum(amount) AS total, count(*)::bigint AS count
-       FROM expenses
-      WHERE user_id = $1 AND date >= $2 AND date <= $3
-      GROUP BY payment_method
-      ORDER BY total DESC`,
-    [userId, from, to]
-  );
-  return rows.map((r) => ({ _id: r._id, total: Number(r.total), count: Number(r.count) }));
-};
-
 /** The single biggest expenses in a range. */
 const topExpenses = async (userId, from, to, limit = 5) => {
   const rows = await query(
@@ -107,6 +94,5 @@ module.exports = {
   totalIncome,
   dailyTotals,
   countExpenses,
-  paymentMethodTotals,
   topExpenses,
 };

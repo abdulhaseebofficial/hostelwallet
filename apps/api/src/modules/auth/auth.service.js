@@ -234,5 +234,4 @@ module.exports = {
   forgotPassword,
   resetPassword,
   changePassword,
-  MAX_SESSIONS,
 };

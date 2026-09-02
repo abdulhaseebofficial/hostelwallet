@@ -5,7 +5,7 @@ import { useAuth } from '../../features/auth/AuthContext';
 import { useTheme } from '../providers/ThemeProvider';
 import { initials } from '../../shared/utils/format';
 import BrandMark from '../../shared/components/layout/BrandMark';
-import NotificationBell from '../../features/notifications/components/NotificationBell';
+import { NotificationBell } from '../../features/notifications';
 
 export default function Navbar({ onOpenMenu, onOpenFeedback }) {
   const { user, logout } = useAuth();
