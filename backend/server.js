@@ -16,6 +16,7 @@ const cron = require('node-cron');
 
 const connectDB = require('./config/db');
 const aiService = require('./services/aiService');
+const mailer = require('./utils/mailer');
 const { validateEnv, isProduction } = require('./config/validateEnv');
 const sanitizeRequest = require('./middleware/sanitize');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
@@ -100,6 +101,10 @@ app.get('/api/health', async (_req, res) => {
     uptime: Math.round(process.uptime()),
     database: (await isConnected()) ? 'connected' : 'disconnected',
     ai: aiService.isConfigured() ? `configured (${aiService.providerName()})` : 'fallback mode',
+    // Surfaced because a deployment with no SMTP silently cannot deliver a
+    // password reset, and nothing else makes that visible until a student
+    // is locked out of their account.
+    mail: mailer.isConfigured() ? 'configured' : 'not configured',
     timestamp: new Date().toISOString(),
   });
 });

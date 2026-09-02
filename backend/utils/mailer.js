@@ -4,6 +4,8 @@
  * forgot-password flow is always testable.
  */
 
+const { isDevelopment } = require('../config/validateEnv');
+
 let transporter = null;
 
 const isConfigured = () => Boolean(process.env.SMTP_HOST && process.env.SMTP_USER);
@@ -27,6 +29,18 @@ const sendMail = async ({ to, subject, text, html }) => {
   const tx = getTransporter();
 
   if (!tx) {
+    // Printing the body is how the reset flow stays testable with no SMTP, but
+    // that body carries a password-reset link. Outside local development the
+    // logs are somewhere other people can read, and a link in them is an
+    // account-takeover primitive - so say only that delivery failed.
+    if (!isDevelopment()) {
+      console.error(
+        `[mail] NOT DELIVERED to ${to} ("${subject}") - no SMTP configured. ` +
+          'Password reset cannot work until SMTP_HOST and SMTP_USER are set.'
+      );
+      return { delivered: false };
+    }
+
     console.log('\n[mail] SMTP not configured - message logged instead of sent');
     console.log(`[mail] to: ${to}`);
     console.log(`[mail] subject: ${subject}`);
