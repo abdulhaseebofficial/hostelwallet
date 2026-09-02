@@ -121,7 +121,7 @@ npm run install:all      # installs both backend and frontend
 ### 2. Configure the backend
 
 ```bash
-cp backend/.env.example backend/.env
+cp apps/api/.env.example apps/api/.env
 ```
 
 Then edit `backend/.env`:
@@ -147,7 +147,7 @@ AI_MODEL=claude-opus-5
 ### 3. Configure the frontend
 
 ```bash
-cp frontend/.env.example frontend/.env
+cp apps/web/.env.example apps/web/.env
 ```
 
 The default `VITE_API_URL=/api` is correct for local development — Vite proxies

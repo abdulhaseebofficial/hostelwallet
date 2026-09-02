@@ -3,22 +3,40 @@
   "version": "1.0.0",
   "private": true,
   "description": "HostelWallet - AI-powered financial manager for university hostel students",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "install:all": "npm install --prefix backend && npm install --prefix frontend",
-    "dev": "concurrently -n api,web -c blue,magenta \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
-    "dev:api": "npm run dev --prefix backend",
-    "dev:web": "npm run dev --prefix frontend",
-    "seed": "npm run seed --prefix backend",
-    "build": "npm run build --prefix frontend",
-    "start": "npm start --prefix backend",
-    "qa": "node tests/api.test.js && node tests/settings.test.js",
-    "qa:api": "node tests/api.test.js",
-    "qa:settings": "node tests/settings.test.js"
+    "dev": "concurrently -n api,web -c blue,magenta \"npm run dev -w @hostelwallet/api\" \"npm run dev -w @hostelwallet/web\"",
+    "dev:api": "npm run dev -w @hostelwallet/api",
+    "dev:web": "npm run dev -w @hostelwallet/web",
+    "build": "npm run build -w @hostelwallet/web",
+    "start": "npm start -w @hostelwallet/api",
+    "migrate": "npm run migrate -w @hostelwallet/api",
+    "seed": "npm run seed -w @hostelwallet/api",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "node tests/e2e/api.test.js && node tests/e2e/settings.test.js",
+    "qa": "npm run test:e2e",
+    "qa:api": "node tests/e2e/api.test.js",
+    "qa:settings": "node tests/e2e/settings.test.js",
+    "check": "npm run test && npm run build"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"
   },
-  "engines": { "node": ">=18" },
-  "keywords": ["student", "budget", "expense-tracker", "claude", "mern"],
-  "license": "MIT"
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "student",
+    "budget",
+    "expense-tracker",
+    "postgres",
+    "react"
+  ],
+  "license": "MIT",
+  "allowScripts": {
+    "esbuild@0.21.5": true
+  }
 }

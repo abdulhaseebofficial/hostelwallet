@@ -1,8 +1,8 @@
 {
-  "name": "hostelwallet-backend",
+  "name": "@hostelwallet/api",
   "version": "1.0.0",
   "private": true,
-  "description": "HostelWallet REST API — expenses, goals, budgets and AI financial advice for hostel students",
+  "description": "HostelWallet REST API \u2014 expenses, goals, budgets and AI financial advice for hostel students",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

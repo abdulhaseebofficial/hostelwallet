@@ -25,6 +25,6 @@ const databaseUrl = () => {
 const DATABASE_URL_MISSING =
   'No Postgres connection string. Set POSTGRES_URL or DATABASE_URL, which ' +
   "the Vercel Supabase and Neon integrations set for you. Locally: run `vercel env pull " +
-  '.env.production.local --environment=production`, or copy backend/.env.example to backend/.env';
+  '.env.production.local --environment=production`, or copy apps/api/.env.example to apps/api/.env';
 
 module.exports = { databaseUrl, DATABASE_URL_MISSING };

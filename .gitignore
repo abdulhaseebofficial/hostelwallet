@@ -1,19 +1,39 @@
+# Dependencies (npm workspaces hoist these to the root)
 node_modules/
+
+# Build and coverage output
 dist/
 build/
-.env
-.env.local
-*.log
-npm-debug.log*
-.DS_Store
 coverage/
-.vscode/
 
+# Environment files.
+#
+# Every real env file is ignored, including the ones `vercel env pull` writes;
+# only the sanitised examples are trackable. The negations have to name the
+# example explicitly because `.env.*` matches it too, and they have to be
+# recursive because each workspace carries its own.
+.env
+.env.*
+!.env.example
+!**/.env.example
 
-.vercel
-.env*
-
-# Connection strings handed over by hand - these carry a database password.
+# Connection strings and keys handed over by hand - these carry live
+# credentials and must never be committed.
 supabase-url.txt
 anthropic-key.txt
 atlas-uri.txt
+gemini-key.txt
+gmail-smtp.txt
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Vercel
+.vercel
