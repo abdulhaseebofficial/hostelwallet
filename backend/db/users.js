@@ -1,10 +1,10 @@
 /**
  * Everything that reads or writes a student's account.
  *
- * Replaces models/User.js. The behaviour mongoose used to provide implicitly
- * lives here explicitly: the password is hashed on the way in, the private
- * columns are stripped on the way out, and the refresh tokens live in their own
- * table instead of an embedded array.
+ * Three rules this file exists to keep in one place: the password is hashed on
+ * the way in, the private columns (hash, reset token, token version) are
+ * stripped on the way out, and refresh tokens live in their own table so a
+ * session can be revoked one device at a time.
  */
 
 const bcrypt = require('bcryptjs');

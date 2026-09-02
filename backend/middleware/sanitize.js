@@ -1,13 +1,14 @@
 /**
  * Strips operator-shaped keys out of anything the client sends.
  *
- * This was written against MongoDB, where a body like `{"email": {"$ne": null}}`
- * reached the query as an operator and was a login bypass. On Postgres every
- * query is parameterised, so that exact attack is gone - but the middleware is
- * kept because it still rejects object-shaped values in fields the code reads
- * as strings, and no legitimate field in this app starts with `$` or contains
- * a `.`. It costs one pass over the body and closes a whole class of surprises
- * centrally rather than route by route.
+ * Every query in this app is parameterised, so a crafted body cannot reach the
+ * database as anything but a value. This runs anyway because parameterisation
+ * only protects the database: code that reads `req.body.email` expecting a
+ * string and gets `{"$ne": null}` still compares, concatenates or logs an
+ * object, and those bugs are easy to write and hard to spot. No legitimate
+ * field here starts with `$` or contains a `.`, so rejecting them costs one
+ * pass over the body and closes the whole class centrally rather than route by
+ * route.
  */
 
 const isPlainObject = (value) =>

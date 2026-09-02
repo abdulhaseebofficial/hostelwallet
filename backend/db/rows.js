@@ -1,8 +1,8 @@
 /**
  * Row shaping.
  *
- * Postgres columns are snake_case; the API has always spoken camelCase with a
- * Mongo-style `_id`, and the frontend and the QA suites both depend on that.
+ * Postgres columns are snake_case; the API speaks camelCase and exposes the
+ * primary key as `_id`, which the frontend and the QA suites both depend on.
  * Rather than spell the mapping out per column in every repository, translate
  * it in one place - so a new column is exposed correctly by default and the
  * wire format cannot drift table by table.

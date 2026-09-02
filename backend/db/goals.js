@@ -1,11 +1,11 @@
 /**
- * Savings goals and their contribution ledger. Replaces models/Goal.js.
+ * Savings goals and their contribution ledger.
  *
- * Two things the mongoose schema did implicitly are explicit here:
- *  - `is_completed` is kept in step with the saved amount on every write, which
- *    the old pre('save') hook did;
- *  - the embedded `contributions` array is now its own table, gathered back
- *    into an array by the SELECT so the API shape does not change.
+ * Two things worth knowing before editing:
+ *  - `is_completed` is kept in step with the saved amount on every write, so a
+ *    goal can never be funded and still read as open;
+ *  - contributions are their own table, gathered back into an array by the
+ *    SELECT, so the API returns one goal object with its ledger inside.
  */
 
 const { query, queryOne, transaction } = require('./pool');

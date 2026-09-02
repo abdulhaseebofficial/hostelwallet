@@ -1,7 +1,7 @@
 /**
  * The one Postgres connection pool, plus the two helpers every repository uses.
  *
- * `pg` is enough here: Neon speaks ordinary Postgres over TLS, so the same
+ * `pg` is enough here: Supabase speaks ordinary Postgres over TLS, so the same
  * driver works for `npm run dev` locally and for the function on Vercel. The
  * pool is created lazily so importing a repository never opens a socket - the
  * health check has to answer even when the database is unreachable.
@@ -74,8 +74,9 @@ const withoutSslMode = (uri) => {
 
 /**
  * `pg` hands back BIGINT (20) and NUMERIC (1700) as strings to protect
- * precision. Every amount in this app is a JavaScript number - that is what
- * mongoose stored and what the API has always returned - so parse them back.
+ * precision. Every amount in this app is a JavaScript number, and the API
+ * contract the frontend and the QA suites are written against says a number,
+ * not a string - so parse them back.
  * Counts from COUNT(*) are small enough that Number is exact.
  */
 types.setTypeParser(20, (value) => (value === null ? null : Number(value)));

@@ -4,9 +4,10 @@
 -- Every statement is idempotent, so re-running it is safe and is exactly what
 -- the deploy does.
 --
--- Amounts are `double precision` on purpose: mongoose stored them as JavaScript
--- numbers and every total in utils/calculations.js is rounded with round2() at
--- the edge, so this keeps the arithmetic what it has always been.
+-- Amounts are `double precision` on purpose. Every total in
+-- utils/calculations.js is rounded with round2() at the edge, so the rounding
+-- that matters happens in one place rather than being split between the column
+-- type and the code.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 

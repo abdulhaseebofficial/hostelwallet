@@ -1,8 +1,8 @@
 /**
  * The aggregate queries behind the dashboard, the reports page and the AI
- * advisor. These were Mongo aggregation pipelines; they are plain GROUP BY
- * here, returning the same `{ _id, total }` row shape so the pure helpers in
- * utils/calculations.js (shapeCategoryTotals) keep working untouched.
+ * advisor. Plain GROUP BY queries, returning a `{ _id, total }` row shape so
+ * the pure helpers in utils/calculations.js (shapeCategoryTotals) can stay
+ * ignorant of where the numbers came from.
  */
 
 const { query, queryOne } = require('./pool');
