@@ -22,6 +22,22 @@
  *    visible labels (legend with values) - identity is never colour alone.
  */
 
+import vocabulary from '@hostelwallet/contracts/vocabulary.json';
+
+const {
+  PAYMENT_METHODS,
+  INCOME_SOURCES,
+  CURRENCIES,
+  FEEDBACK_TYPES,
+  DEVELOPER,
+  CATEGORIES: CATEGORY_VOCABULARY,
+  RECURRING_FREQUENCIES: RECURRING_VALUES,
+} = vocabulary;
+
+// Re-exported so screens keep importing these from one place, while the list
+// itself is the same one the API validates against.
+export { PAYMENT_METHODS, INCOME_SOURCES, CURRENCIES, FEEDBACK_TYPES, DEVELOPER };
+
 export const CATEGORIES = [
   { name: 'Mess/Food',          light: '#2a78d6', dark: '#3987e5', emoji: '\uD83C\uDF5B' },
   { name: 'Rent/Hostel Fee',    light: '#eb6834', dark: '#d95926', emoji: '\uD83C\uDFE0' },
@@ -35,6 +51,22 @@ export const CATEGORIES = [
 ];
 
 export const CATEGORY_NAMES = CATEGORIES.map((c) => c.name);
+
+/**
+ * The table above attaches a colour and an emoji to each category, so it has
+ * to name them - which means it can fall behind the shared list. Saying so at
+ * import time turns a silently uncoloured category into an obvious warning.
+ */
+if (import.meta.env.DEV) {
+  const missing = CATEGORY_VOCABULARY.filter((name) => !CATEGORY_NAMES.includes(name));
+  const extra = CATEGORY_NAMES.filter((name) => !CATEGORY_VOCABULARY.includes(name));
+  if (missing.length || extra.length) {
+    console.warn(
+      '[constants] the category presentation table has drifted from @hostelwallet/contracts',
+      { missing, extra }
+    );
+  }
+}
 
 // Custom categories continue the same order rather than inventing new hues:
 // slot 9 onward reuses the validated steps, which is safe because a chart
@@ -71,27 +103,18 @@ export const CHART_INK = {
   dark: { grid: '#332f2a', axis: '#47423a', muted: '#b0aa9c', surface: '#262421', text: '#f3f1ec' },
 };
 
-// How a hostel student in Pakistan actually pays for things.
-export const PAYMENT_METHODS = ['Cash', 'JazzCash', 'Easypaisa', 'Bank Transfer', 'Card', 'Raast'];
+/**
+ * The repeat options, as the UI shows them.
+ *
+ * The values come from the shared contract so they cannot drift from what the
+ * API accepts; only the wording is ours.
+ */
+const FREQUENCY_LABELS = { daily: 'Every day', weekly: 'Every week', monthly: 'Every month' };
 
-export const INCOME_SOURCES = ['Pocket Money', 'Part-time Job', 'Scholarship', 'Freelance', 'Gift', 'Other'];
-
-export const RECURRING_FREQUENCIES = [
-  { value: 'daily', label: 'Every day' },
-  { value: 'weekly', label: 'Every week' },
-  { value: 'monthly', label: 'Every month' },
-];
-
-export const CURRENCIES = [
-  { code: 'PKR', symbol: 'Rs', label: 'Pakistani Rupee' },
-  { code: 'INR', symbol: '\u20B9', label: 'Indian Rupee' },
-  { code: 'BDT', symbol: '\u09F3', label: 'Bangladeshi Taka' },
-  { code: 'AED', symbol: '\u062F.\u0625', label: 'UAE Dirham' },
-  { code: 'SAR', symbol: '\uFDFC', label: 'Saudi Riyal' },
-  { code: 'USD', symbol: '$', label: 'US Dollar' },
-  { code: 'GBP', symbol: '\u00A3', label: 'British Pound' },
-  { code: 'EUR', symbol: '\u20AC', label: 'Euro' },
-];
+export const RECURRING_FREQUENCIES = RECURRING_VALUES.map((value) => ({
+  value,
+  label: FREQUENCY_LABELS[value] || value,
+}));
 
 export const GOAL_ICONS = [
   '\uD83C\uDFAF', '\uD83D\uDCBB', '\uD83D\uDCF1', '\uD83C\uDFD6', '\uD83C\uDF93',
@@ -104,15 +127,6 @@ export const GOAL_ICONS = [
  * constants: this copy is for DISPLAY (footer links, the feedback dialog),
  * the server's copy is the address feedback is actually delivered to.
  */
-export const DEVELOPER = {
-  name: 'Abdul Haseeb',
-  email: 'abdul.haseeb.kashmiri@outlook.com',
-  linkedin: 'https://www.linkedin.com/in/abdulhaseebkashmiri/',
-};
-
-/** What a piece of feedback is about. Must match the backend enum. */
-export const FEEDBACK_TYPES = ['General', 'Bug', 'Feature request', 'Design', 'Praise'];
-
 /**
  * Budget traffic lights. These are STATUS colours, deliberately distinct from
  * the categorical slots, and they always ship with a text label so meaning is

@@ -1,43 +1,30 @@
 /**
- * Shared, app-wide constants. Kept in one place so models, validators and the
- * AI prompts all agree on the same vocabulary.
+ * App-wide constants.
+ *
+ * The vocabulary the web app also needs - categories, payment methods,
+ * currencies, notification and feedback types - lives in
+ * @hostelwallet/contracts so the two cannot drift. It is re-exported here so
+ * nothing inside the API has to know where it came from.
+ *
+ * What stays is what only the API decides.
  */
 
-// Default spending categories tuned for Indian hostel life.
-const DEFAULT_CATEGORIES = [
-  'Mess/Food',
-  'Rent/Hostel Fee',
-  'Books & Stationery',
-  'Travel',
-  'Mobile/Internet',
-  'Entertainment',
-  'Health',
-  // Covers what every hostel student spends on regardless of who they are:
-  // salon or barber, toiletries, laundry supplies, tailoring, skincare.
-  'Personal Care',
-  'Misc',
-];
+const contracts = require('@hostelwallet/contracts');
 
-// How a hostel student in Pakistan actually pays for things.
-const PAYMENT_METHODS = ['Cash', 'JazzCash', 'Easypaisa', 'Bank Transfer', 'Card', 'Raast'];
+const {
+  PAYMENT_METHODS,
+  INCOME_SOURCES,
+  RECURRING_FREQUENCIES,
+  CURRENCIES,
+  NOTIFICATION_TYPES,
+  FEEDBACK_TYPES,
+  DEVELOPER,
+} = contracts;
 
-const INCOME_SOURCES = ['Pocket Money', 'Part-time Job', 'Scholarship', 'Freelance', 'Gift', 'Other'];
+/** Named DEFAULT_CATEGORIES here because a student can add their own. */
+const DEFAULT_CATEGORIES = contracts.CATEGORIES;
 
-const RECURRING_FREQUENCIES = ['daily', 'weekly', 'monthly'];
-
-const CURRENCIES = [
-  { code: 'PKR', symbol: 'Rs', label: 'Pakistani Rupee' },
-  { code: 'INR', symbol: '\u20B9', label: 'Indian Rupee' },
-  { code: 'BDT', symbol: '\u09F3', label: 'Bangladeshi Taka' },
-  { code: 'AED', symbol: '\u062F.\u0625', label: 'UAE Dirham' },
-  { code: 'SAR', symbol: '\uFDFC', label: 'Saudi Riyal' },
-  { code: 'USD', symbol: '$', label: 'US Dollar' },
-  { code: 'GBP', symbol: '\u00A3', label: 'British Pound' },
-  { code: 'EUR', symbol: '\u20AC', label: 'Euro' },
-];
-
-const NOTIFICATION_TYPES = ['overspend', 'goal_deadline', 'log_reminder', 'bill_due', 'goal_completed', 'info'];
-
+/** The emoji a goal gets when the student does not pick one. */
 // A sensible starting split used when the AI is unavailable (percent of income).
 const FALLBACK_BUDGET_SPLIT = {
   'Mess/Food': 0.28,
@@ -51,21 +38,7 @@ const FALLBACK_BUDGET_SPLIT = {
   Misc: 0.08,
 };
 
-/**
- * Who the app is by, and where feedback goes. Kept here so the address and
- * profile live in exactly one place on the server.
- */
-const DEVELOPER = {
-  name: 'Abdul Haseeb',
-  email: 'abdul.haseeb.kashmiri@outlook.com',
-  linkedin: 'https://www.linkedin.com/in/abdulhaseebkashmiri/',
-};
-
-/** The emoji a goal gets when the student does not pick one. */
 const DEFAULT_GOAL_ICON = '🎯';
-
-/** What a piece of feedback is about. */
-const FEEDBACK_TYPES = ['General', 'Bug', 'Feature request', 'Design', 'Praise'];
 
 module.exports = {
   DEFAULT_CATEGORIES,

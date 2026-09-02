@@ -1,0 +1,96 @@
+{
+  "CATEGORIES": [
+    "Mess/Food",
+    "Rent/Hostel Fee",
+    "Books & Stationery",
+    "Travel",
+    "Mobile/Internet",
+    "Entertainment",
+    "Health",
+    "Personal Care",
+    "Misc"
+  ],
+  "PAYMENT_METHODS": [
+    "Cash",
+    "JazzCash",
+    "Easypaisa",
+    "Bank Transfer",
+    "Card",
+    "Raast"
+  ],
+  "INCOME_SOURCES": [
+    "Pocket Money",
+    "Part-time Job",
+    "Scholarship",
+    "Freelance",
+    "Gift",
+    "Other"
+  ],
+  "RECURRING_FREQUENCIES": [
+    "daily",
+    "weekly",
+    "monthly"
+  ],
+  "CURRENCIES": [
+    {
+      "code": "PKR",
+      "symbol": "Rs",
+      "label": "Pakistani Rupee"
+    },
+    {
+      "code": "INR",
+      "symbol": "₹",
+      "label": "Indian Rupee"
+    },
+    {
+      "code": "BDT",
+      "symbol": "৳",
+      "label": "Bangladeshi Taka"
+    },
+    {
+      "code": "AED",
+      "symbol": "د.إ",
+      "label": "UAE Dirham"
+    },
+    {
+      "code": "SAR",
+      "symbol": "﷼",
+      "label": "Saudi Riyal"
+    },
+    {
+      "code": "USD",
+      "symbol": "$",
+      "label": "US Dollar"
+    },
+    {
+      "code": "GBP",
+      "symbol": "£",
+      "label": "British Pound"
+    },
+    {
+      "code": "EUR",
+      "symbol": "€",
+      "label": "Euro"
+    }
+  ],
+  "NOTIFICATION_TYPES": [
+    "overspend",
+    "goal_deadline",
+    "log_reminder",
+    "bill_due",
+    "goal_completed",
+    "info"
+  ],
+  "FEEDBACK_TYPES": [
+    "General",
+    "Bug",
+    "Feature request",
+    "Design",
+    "Praise"
+  ],
+  "DEVELOPER": {
+    "name": "Abdul Haseeb",
+    "email": "abdul.haseeb.kashmiri@outlook.com",
+    "linkedin": "https://www.linkedin.com/in/abdulhaseebkashmiri/"
+  }
+}

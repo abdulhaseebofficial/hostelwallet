@@ -11,6 +11,7 @@
   "license": "MIT",
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
+    "@hostelwallet/contracts": "1.0.0",
     "axios": "^1.7.7",
     "date-fns": "^3.6.0",
     "lucide-react": "^0.441.0",

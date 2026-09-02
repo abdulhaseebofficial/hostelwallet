@@ -1,0 +1,12 @@
+{
+  "name": "@hostelwallet/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The vocabulary the API and the web app must agree on",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./vocabulary.json": "./vocabulary.json"
+  },
+  "license": "MIT"
+}
