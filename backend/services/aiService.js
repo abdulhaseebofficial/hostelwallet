@@ -12,72 +12,11 @@
  *    prose it has to parse with regexes.
  */
 
-const Anthropic = require('@anthropic-ai/sdk');
+const ai = require('./ai');
 const { FALLBACK_BUDGET_SPLIT, DEFAULT_CATEGORIES } = require('../config/constants');
 const { round2 } = require('../utils/calculations');
 
-const DEFAULT_MODEL = 'claude-opus-5';
-
-// Tried in order. The configured model goes first; if a key cannot reach it
-// (wrong tier, model retired, typo in AI_MODEL) the next one is tried instead,
-// so the advisor works on any Anthropic key rather than only a top-tier one.
-const FALLBACK_MODELS = ['claude-sonnet-5', 'claude-haiku-4-5'];
-
-const modelChain = () => {
-  const configured = process.env.AI_MODEL || DEFAULT_MODEL;
-  return [configured, ...FALLBACK_MODELS].filter((m, i, all) => all.indexOf(m) === i);
-};
-
-// output_config.effort is rejected outright by the small/older models, so it is
-// stripped for them rather than turning a working fallback into a 400.
-const supportsEffort = (model) => !/haiku|sonnet-4-5|opus-4-5/.test(model);
-
-// Once a model answers successfully it is pinned for the life of the process,
-// so a dead first choice is not re-tried on every single request.
-let resolvedModel = null;
-
-/** The model actually answering right now (or the configured one before any call). */
-const activeModel = () => resolvedModel || modelChain()[0];
-
-let client = null;
-const getClient = () => {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
-  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  return client;
-};
-
-const isConfigured = () => Boolean(process.env.ANTHROPIC_API_KEY);
-
 /* ----------------------------- helpers ------------------------------ */
-
-/** Joins every text block of a Messages API response into one string. */
-const textOf = (response) =>
-  response.content
-    .filter((block) => block.type === 'text')
-    .map((block) => block.text)
-    .join('')
-    .trim();
-
-/** Reads a structured (json_schema) response back into a JS object. */
-const jsonOf = (response) => {
-  const raw = textOf(response);
-  try {
-    return JSON.parse(raw);
-  } catch {
-    // Very rare: the model wrapped the JSON in prose. Recover the outer object.
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error('AI returned a response that was not valid JSON');
-  }
-};
-
-/** Guards the refusal stop reason before any content is read. */
-const assertAnswered = (response) => {
-  if (response.stop_reason === 'refusal') {
-    throw new Error('The AI declined to answer this request.');
-  }
-  return response;
-};
 
 // Indian grouping (1,25,000) only applies to INR; PKR and the rest read
 // naturally with western grouping (125,000).
@@ -192,127 +131,12 @@ const SYSTEM_PROMPT = [
   '- Keep it short. Students skim.',
 ].join('\n');
 
-/** A 404/403 (or a 400 naming the model) means this key cannot use that model. */
-const isModelUnavailable = (err) => {
-  const status = err && err.status;
-  if (status === 404 || status === 403) return true;
-  const message = String((err && err.message) || '').toLowerCase();
-  return (
-    status === 400 &&
-    message.includes('model') &&
-    (message.includes('not found') || message.includes('invalid') || message.includes('does not exist'))
-  );
-};
-
-/** A 400 about a parameter the model does not accept, rather than about the model. */
-const isUnsupportedParam = (err) => {
-  const status = err && err.status;
-  const message = String((err && err.message) || '').toLowerCase();
-  return (
-    status === 400 &&
-    (message.includes('output_config') ||
-      message.includes('effort') ||
-      message.includes('format') ||
-      message.includes('unsupported') ||
-      message.includes('unexpected'))
-  );
-};
-
-/** Adapts one request to what a given model actually accepts. */
-const shapeFor = (model, base) => {
-  const params = { ...base, model };
-  if (params.output_config && !supportsEffort(model)) {
-    const { effort, ...rest } = params.output_config;
-    if (Object.keys(rest).length) params.output_config = rest;
-    else delete params.output_config;
-  }
-  return params;
-};
-
-/**
- * Last resort for a model that cannot do structured outputs: drop the schema
- * and ask for raw JSON in the prompt instead. jsonOf() already recovers an
- * object from prose, so the endpoint still returns usable data.
- */
-const withoutStructuredOutput = (params) => {
-  const next = { ...params };
-  const schema =
-    next.output_config && next.output_config.format && next.output_config.format.schema;
-  delete next.output_config;
-
-  if (schema && schema.properties) {
-    const keys = Object.keys(schema.properties).join(', ');
-    const last = next.messages.length - 1;
-    next.messages = next.messages.map((m, i) =>
-      i === last && m.role === 'user'
-        ? {
-            ...m,
-            content: `${m.content}
-
-Reply with ONLY a raw JSON object - no markdown, no commentary - containing exactly these top-level keys: ${keys}.`,
-          }
-        : m
-    );
-  }
-  return next;
-};
-
-/**
- * Sends one request, walking the model chain until something answers.
- * Only model-availability failures advance the chain; a rate limit or a network
- * error is thrown so the caller can fall back to the rule-based advisor.
- */
-const createMessage = async (anthropic, baseParams) => {
-  const chain = resolvedModel
-    ? [resolvedModel, ...modelChain().filter((m) => m !== resolvedModel)]
-    : modelChain();
-
-  let lastError = null;
-
-  for (const model of chain) {
-    const params = shapeFor(model, baseParams);
-    try {
-      const response = await anthropic.messages.create(params);
-      if (resolvedModel !== model) {
-        console.log(`[ai] using ${model}`);
-        resolvedModel = model;
-      }
-      return response;
-    } catch (err) {
-      lastError = err;
-
-      // The model is reachable but rejected a parameter - retry it plainly.
-      if (isUnsupportedParam(err) && params.output_config) {
-        try {
-          const response = await anthropic.messages.create(withoutStructuredOutput(params));
-          console.log(`[ai] using ${model} without structured output`);
-          resolvedModel = model;
-          return response;
-        } catch (retryError) {
-          lastError = retryError;
-        }
-      }
-
-      if (isModelUnavailable(err)) {
-        console.warn(`[ai] ${model} not available on this key (${err.status}); trying the next model`);
-        resolvedModel = null;
-        continue;
-      }
-
-      throw err; // rate limit, overload, network - not a model problem
-    }
-  }
-
-  throw lastError;
-};
-
-/** Wraps a Claude call so any failure downgrades to the rule-based advisor. */
+/** Wraps an AI call so any failure downgrades to the rule-based advisor. */
 const withFallback = async (label, run, fallback) => {
-  const anthropic = getClient();
-  if (!anthropic) return { ...fallback(), aiPowered: false, reason: 'no_api_key' };
+  if (!ai.isConfigured()) return { ...fallback(), aiPowered: false, reason: 'no_api_key' };
 
   try {
-    const result = await run(anthropic);
+    const result = await run();
     return { ...result, aiPowered: true };
   } catch (err) {
     console.error(`[ai] ${label} failed:`, err.message);
@@ -356,14 +180,12 @@ const ADVICE_SCHEMA = {
 const getAdvice = async ({ user, snapshot, tipCount = 4 }) =>
   withFallback(
     'advice',
-    async (anthropic) => {
-      const response = await createMessage(anthropic, {
-        max_tokens: 8000,
+    async () => {
+      const answer = await ai.complete({
+        maxTokens: 8000,
         system: SYSTEM_PROMPT,
-        output_config: {
-          effort: 'medium',
-          format: { type: 'json_schema', schema: ADVICE_SCHEMA },
-        },
+        effort: 'medium',
+        schema: ADVICE_SCHEMA,
         messages: [
           {
             role: 'user',
@@ -380,8 +202,7 @@ const getAdvice = async ({ user, snapshot, tipCount = 4 }) =>
         ],
       });
 
-      assertAnswered(response);
-      return jsonOf(response);
+      return answer.json;
     },
     () => fallbackAdvice({ user, snapshot, tipCount })
   );
@@ -391,11 +212,11 @@ const getAdvice = async ({ user, snapshot, tipCount = 4 }) =>
 const chat = async ({ user, snapshot, history = [], message }) =>
   withFallback(
     'chat',
-    async (anthropic) => {
-      const response = await createMessage(anthropic, {
-        max_tokens: 8000,
+    async () => {
+      const answer = await ai.complete({
+        maxTokens: 8000,
         system: SYSTEM_PROMPT,
-        output_config: { effort: 'medium' },
+        effort: 'medium',
         messages: [
           // The snapshot is injected as the opening turn so the stored chat
           // history can be replayed verbatim on every request.
@@ -414,8 +235,7 @@ const chat = async ({ user, snapshot, history = [], message }) =>
         ],
       });
 
-      assertAnswered(response);
-      return { reply: textOf(response) };
+      return { reply: answer.text };
     },
     () => fallbackChat({ user, snapshot, message })
   );
@@ -425,11 +245,11 @@ const chat = async ({ user, snapshot, history = [], message }) =>
 const dailyTip = async ({ user, snapshot }) =>
   withFallback(
     'tip',
-    async (anthropic) => {
-      const response = await createMessage(anthropic, {
-        max_tokens: 4000,
+    async () => {
+      const answer = await ai.complete({
+        maxTokens: 4000,
         system: SYSTEM_PROMPT,
-        output_config: { effort: 'low' },
+        effort: 'low',
         messages: [
           {
             role: 'user',
@@ -445,8 +265,7 @@ const dailyTip = async ({ user, snapshot }) =>
         ],
       });
 
-      assertAnswered(response);
-      return { tip: textOf(response) };
+      return { tip: answer.text };
     },
     () => fallbackTip({ user, snapshot })
   );
@@ -482,14 +301,12 @@ const BUDGET_SCHEMA = {
 const suggestBudget = async ({ user, snapshot, categories }) =>
   withFallback(
     'suggest-budget',
-    async (anthropic) => {
-      const response = await createMessage(anthropic, {
-        max_tokens: 8000,
+    async () => {
+      const answer = await ai.complete({
+        maxTokens: 8000,
         system: SYSTEM_PROMPT,
-        output_config: {
-          effort: 'medium',
-          format: { type: 'json_schema', schema: BUDGET_SCHEMA },
-        },
+        effort: 'medium',
+        schema: BUDGET_SCHEMA,
         messages: [
           {
             role: 'user',
@@ -510,8 +327,7 @@ const suggestBudget = async ({ user, snapshot, categories }) =>
         ],
       });
 
-      assertAnswered(response);
-      return jsonOf(response);
+      return answer.json;
     },
     () => fallbackBudget({ user, snapshot, categories })
   );
@@ -521,11 +337,11 @@ const suggestBudget = async ({ user, snapshot, categories }) =>
 const weeklySummary = async ({ user, snapshot }) =>
   withFallback(
     'weekly-summary',
-    async (anthropic) => {
-      const response = await createMessage(anthropic, {
-        max_tokens: 8000,
+    async () => {
+      const answer = await ai.complete({
+        maxTokens: 8000,
         system: SYSTEM_PROMPT,
-        output_config: { effort: 'low' },
+        effort: 'low',
         messages: [
           {
             role: 'user',
@@ -542,8 +358,7 @@ const weeklySummary = async ({ user, snapshot }) =>
         ],
       });
 
-      assertAnswered(response);
-      return { summary: textOf(response) };
+      return { summary: answer.text };
     },
     () => ({ summary: fallbackTip({ user, snapshot }).tip })
   );
@@ -694,13 +509,15 @@ const fallbackBudget = ({ user, snapshot, categories }) => {
 };
 
 module.exports = {
-  isConfigured,
+  isConfigured: ai.isConfigured,
+  providerName: ai.providerName,
   snapshotToText,
   getAdvice,
   chat,
   dailyTip,
   suggestBudget,
   weeklySummary,
-  activeModel,
-  modelChain,
+  activeModel: ai.activeModel,
+  modelChain: ai.modelChain,
+  SETUP_HINT: ai.SETUP_HINT,
 };

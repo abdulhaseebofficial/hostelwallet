@@ -21,6 +21,9 @@ const status = asyncHandler(async (req, res) => {
     success: true,
     data: {
       configured: aiService.isConfigured(),
+      // Which service is answering - 'gemini', 'claude', or null when the
+      // rule-based advisor is standing in.
+      provider: aiService.providerName(),
       // The model actually answering, which may not be the configured one if
       // this key could not reach it.
       model: aiService.isConfigured() ? aiService.activeModel() : null,

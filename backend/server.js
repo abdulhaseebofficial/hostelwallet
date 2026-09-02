@@ -15,6 +15,7 @@ const cookieParser = require('cookie-parser');
 const cron = require('node-cron');
 
 const connectDB = require('./config/db');
+const aiService = require('./services/aiService');
 const { validateEnv, isProduction } = require('./config/validateEnv');
 const sanitizeRequest = require('./middleware/sanitize');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
@@ -98,7 +99,7 @@ app.get('/api/health', async (_req, res) => {
     status: 'ok',
     uptime: Math.round(process.uptime()),
     database: (await isConnected()) ? 'connected' : 'disconnected',
-    ai: Boolean(process.env.ANTHROPIC_API_KEY) ? 'configured' : 'fallback mode',
+    ai: aiService.isConfigured() ? `configured (${aiService.providerName()})` : 'fallback mode',
     timestamp: new Date().toISOString(),
   });
 });
@@ -213,7 +214,11 @@ const start = async () => {
       console.log(`  environment    ${process.env.NODE_ENV || 'development'}`);
       console.log(`  cors origins   ${allowedOrigins.join(', ')}`);
       console.log(
-        `  ai advisor     ${process.env.ANTHROPIC_API_KEY ? 'Claude - ' + require('./services/aiService').modelChain().join(' -> ') : 'fallback rules (set ANTHROPIC_API_KEY to enable Claude)'}`
+        `  ai advisor     ${
+          aiService.isConfigured()
+            ? `${aiService.providerName()} - ${aiService.modelChain().join(' -> ')}`
+            : `fallback rules (${aiService.SETUP_HINT})`
+        }`
       );
       console.log('');
     });
