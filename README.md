@@ -90,9 +90,9 @@ reaches the browser.
 |---|---|
 | Frontend | React 18 (Vite), Tailwind CSS, React Router, Recharts, Axios, React Hook Form + Zod, React Hot Toast, lucide-react |
 | Backend | Node.js, Express, JWT (access + refresh), bcryptjs, express-validator, Helmet, CORS, morgan, express-rate-limit |
-| Database | Postgres (Neon), queried with `pg` and parameterised SQL |
-| AI | Claude API via `@anthropic-ai/sdk`, server-side only, with an automatic model fallback chain |
-| Jobs | node-cron for recurring expenses and daily alert checks |
+| Database | Postgres (Supabase), queried with `pg` and parameterised SQL, versioned migrations |
+| AI | Gemini or Claude, whichever key is set, server-side only, with a model fallback chain and a rule-based advisor when neither is |
+| Jobs | idempotent handlers for recurring expenses and daily alerts, driven by node-cron in a long-running process |
 | Export | pdfkit (PDF) and a hand-rolled CSV writer |
 
 > `bcryptjs` is used instead of `bcrypt` — it is a drop-in pure-JS replacement that
@@ -100,23 +100,91 @@ reaches the browser.
 
 ---
 
+## How the code is laid out
+
+Both apps are grouped by feature rather than by technical role, so a change to
+expenses lives in one place instead of five.
+
+```
+apps/
+  api/                        Express API (Node, CommonJS)
+    server.js                 runtime startup; Vercel imports the app from here
+    src/
+      app.js                  builds the Express app - no sockets, no timers
+      routes.js               every feature router, mounted in one place
+      modules/                one folder per feature
+        expenses/
+          expenses.routes.js       URL -> validator -> controller. Wiring only
+          expenses.validator.js    request rules; a bad request dies here
+          expenses.controller.js   HTTP in, JSON out. No SQL, no business rules
+          expenses.service.js      what the feature decides
+          expenses.repository.js   all the SQL, always scoped by user_id
+        auth/ users/ income/ budgets/ goals/ dashboard/
+        reports/ advisor/ notifications/ feedback/ analytics/
+      shared/                 middleware, errors, framework-neutral helpers
+      infrastructure/         the outside world: pool, mailer, AI providers,
+                              certificates, scheduling
+  web/                        React 18 + Vite + Tailwind
+    src/
+      app/                    routes, providers, the app shell
+      features/               auth, onboarding, dashboard, expenses, income,
+                              budgets, goals, reports, advisor, notifications,
+                              feedback, settings - each owning its pages, api
+                              calls, components and hooks
+      shared/                 ui primitives, charts, the axios client, utils
+packages/
+  contracts/                  the vocabulary both apps must agree on
+database/
+  migrations/                 ordered, immutable, applied in order
+  seeds/                      demo data, never run by a migration
+tests/
+  unit/                       pure logic
+  e2e/                        the full stack, against a running server
+  migrations/                 fresh-database and already-provisioned paths
+scripts/                      the checks that keep the structure honest
+```
+
+### The rules, and what enforces them
+
+The layout is only worth having if something stops it being ignored, so
+`npm run check:boundaries` fails the build on any of these:
+
+- **API:** `route -> validator -> controller -> service -> repository`. A
+  controller contains no SQL and no business rules; a repository contains
+  nothing but SQL. One module may call another's **service**, never its
+  repository.
+- **API:** `shared/` and `infrastructure/` never import a feature module.
+- **Web:** `shared/` never imports a feature.
+- **Web:** a feature imports another feature's `index.js` - its public API -
+  never a path inside it.
+
+`npm run check:dead` is the companion: it walks out from the entry points and
+reports anything nothing reaches, failing only on a finding with no recorded
+reason.
+
+---
+
 ## Getting started
 
 ### Prerequisites
 - Node.js 18 or newer
-- A Postgres database. The quickest route is [Neon](https://neon.tech) via the
-  Vercel Marketplace (`vercel integration add neon`), which provisions one and
-  sets `DATABASE_URL` for you; any Postgres 14+ will do
-- Optional: an [Anthropic API key](https://console.anthropic.com/settings/keys)
-  for the AI advisor
+- A Postgres database. The quickest route is the Vercel Marketplace
+  (`vercel integration add supabase`, or `neon`), which provisions one and sets
+  the connection string for you; any Postgres 14+ will do
+- Optional, for the AI advisor: a [Gemini key](https://aistudio.google.com/apikey)
+  (free tier) or an [Anthropic key](https://console.anthropic.com/settings/keys).
+  Without either, a built-in rule-based advisor answers instead
 
 ### 1. Install
 
 ```bash
 git clone <your-repo-url> hostelwallet
 cd hostelwallet
-npm run install:all      # installs both backend and frontend
+npm install              # one install for every workspace
 ```
+
+This is an npm workspace: `apps/api`, `apps/web` and `packages/contracts` share
+one `node_modules` and one lockfile at the root.
 
 ### 2. Configure the backend
 
@@ -124,7 +192,7 @@ npm run install:all      # installs both backend and frontend
 cp apps/api/.env.example apps/api/.env
 ```
 
-Then edit `backend/.env`:
+Then edit `apps/api/.env`:
 
 ```ini
 PORT=5000
@@ -190,12 +258,23 @@ The login screen has a **Try the demo account** button that fills these in.
 ## Testing
 
 ```bash
-npm run dev      # the API must be running and DATABASE_URL set
-npm run qa       # 102 checks against the live stack
+npm run check    # everything below, in order
 ```
 
-Two dependency-free suites — Node 18's built-in `fetch` is all they need, so
-they run on a fresh clone.
+Or one at a time:
+
+```bash
+npm run check:boundaries   # the layering rules
+npm run check:dead         # files and exports nothing reaches
+npm run test:unit          # pure logic, no database, no server
+npm run test:migrations    # fresh-database and re-apply paths
+npm run test:e2e           # the full stack (needs `npm run dev` running)
+npm run build              # production build
+```
+
+The end-to-end suites are dependency-free — Node 18's built-in `fetch` is all
+they need — and the unit tests use Node's own runner, so a fresh clone can run
+all of it with nothing extra installed.
 
 | Suite | Covers |
 |---|---|
@@ -331,10 +410,16 @@ Failure: `{ success: false, message, errors? }` where `errors` is a
 
 ## How the AI integration works
 
-Everything lives in `backend/services/aiService.js` — it is the only file in the
-project that talks to Anthropic.
+The advisor lives in `apps/api/src/modules/advisor/`: the prompts, the response
+schemas and the rule-based fallbacks in `advisor.ai.js`, the feature itself in
+`advisor.service.js`. Whichever model answers is behind
+`src/infrastructure/ai/`, which is the only place in the project that talks to
+a provider — the advisor never learns which one replied.
 
-1. `analyticsService.buildSnapshot()` produces one canonical object describing the
+Set `GEMINI_API_KEY` or `ANTHROPIC_API_KEY` and the advisor turns on; set
+neither and the rule-based advisor answers, so every screen keeps working.
+
+1. `analytics.buildSnapshot()` produces one canonical object describing the
    student's month: income, spend, per-category breakdown, budgets with their
    status, active goals, days left, daily average. The dashboard, the reports page
    and the AI all read from this same snapshot, so **a number on screen is always
@@ -455,7 +540,7 @@ telling you one of the three required variables above is not set.
 
 **Backend → Render or Railway**
 - Root `backend`, build `npm install`, start `npm start`
-- Set every variable from `backend/.env.example`
+- Set every variable from `apps/api/.env.example`
 - Set `CLIENT_URL` to the deployed frontend origin (comma-separate several)
 - `NODE_ENV=production` — this switches the refresh cookie to
   `secure: true; sameSite: none` so it survives the cross-site hop
