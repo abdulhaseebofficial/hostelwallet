@@ -9,8 +9,6 @@ npm-debug.log*
 coverage/
 .vscode/
 
-# local dev database
-.mongodb-data/
 
 .vercel
 .env*
