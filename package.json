@@ -14,13 +14,15 @@
     "build": "npm run build -w @hostelwallet/web",
     "start": "npm start -w @hostelwallet/api",
     "migrate": "npm run migrate -w @hostelwallet/api",
+    "migrate:status": "npm run migrate:status -w @hostelwallet/api",
+    "test:migrations": "node tests/migrations/fresh-schema.test.js",
     "seed": "npm run seed -w @hostelwallet/api",
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "node tests/e2e/api.test.js && node tests/e2e/settings.test.js",
     "qa": "npm run test:e2e",
     "qa:api": "node tests/e2e/api.test.js",
     "qa:settings": "node tests/e2e/settings.test.js",
-    "check": "npm run test && npm run build"
+    "check": "npm run test:migrations && npm run test:e2e && npm run build"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"
