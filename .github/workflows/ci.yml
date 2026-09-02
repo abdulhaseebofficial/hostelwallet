@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Everything that needs no database. Fast, and the first thing to fail on a
+  # broken import or a crossed layer.
+  static:
+    name: Structure, unit tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Check the layering rules
+        run: npm run check:boundaries
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Production build
+        run: npm run build
+
+      # Advisory: a vulnerable transitive dependency should be visible without
+      # failing every unrelated pull request over it.
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+  # The database-backed half. Runs against a throwaway Postgres, so it needs no
+  # secrets and cannot touch anything real.
+  integration:
+    name: Migrations and API
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: hostelwallet
+          POSTGRES_PASSWORD: hostelwallet
+          POSTGRES_DB: hostelwallet_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://hostelwallet:hostelwallet@localhost:5432/hostelwallet_test
+      NODE_ENV: development
+      # Not secrets: this database exists for the length of one job.
+      JWT_ACCESS_SECRET: ci-access-secret-long-enough-to-pass-validation-000000
+      JWT_REFRESH_SECRET: ci-refresh-secret-long-enough-to-pass-validation-00000
+      CLIENT_URL: http://localhost:5173
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Proves the fresh-database path: a schema that does not exist yet ends
+      # up complete, and re-applying is harmless.
+      - name: Migrate
+        run: npm run migrate
+
+      - name: Migration checks
+        run: npm run test:migrations
+
+      - name: Seed the demo account the API suite signs in as
+        run: npm run seed
+
+      - name: Start the API
+        run: |
+          npm start &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5000/api/health > /dev/null; then
+              echo "api up"; exit 0
+            fi
+            sleep 2
+          done
+          echo "api did not start"; exit 1
+
+      - name: API and settings suites
+        run: npm run test:e2e
