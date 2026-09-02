@@ -1,0 +1,17 @@
+const express = require('express');
+const ctrl = require('./income.controller');
+const validate = require('../../shared/middleware/validate');
+const { protect } = require('../../shared/middleware/authenticate');
+const { incomeValidators } = require('../../shared/validators');
+
+const router = express.Router();
+
+router.use(protect);
+
+router.get('/', ctrl.listIncome);
+router.get('/summary', ctrl.incomeSummary);
+router.post('/', incomeValidators.create, validate, ctrl.createIncome);
+router.put('/:id', incomeValidators.update, validate, ctrl.updateIncome);
+router.delete('/:id', incomeValidators.byId, validate, ctrl.deleteIncome);
+
+module.exports = router;
