@@ -21,6 +21,7 @@ const { validateEnv, isProduction } = require('./shared/config/validateEnv');
 const sanitizeRequest = require('./shared/middleware/sanitize');
 const { notFound, errorHandler } = require('./shared/middleware/errorHandler');
 const { globalLimiter } = require('./shared/middleware/rateLimiter');
+const { safeUrl } = require('./shared/http/safeUrl');
 const registerRoutes = require('./routes');
 const notificationSubscriptions = require('./modules/notifications/notifications.subscriptions');
 const {
@@ -109,7 +110,15 @@ const createApp = () => {
       origin: (origin, callback) => {
         // Same-origin requests and tools like curl send no Origin header.
         if (!origin || origins.includes(origin)) return callback(null, true);
-        return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+
+        // A blocked origin is the caller's problem, not a server fault. Left
+        // as a bare Error this surfaced as a 500, which is wrong twice over:
+        // it says the server failed when it did exactly what it should, and it
+        // buries genuine 500s in the same bucket in whatever is watching the
+        // logs. Nothing legitimate ever sees this response.
+        const rejected = new Error(`Origin ${origin} is not allowed by CORS`);
+        rejected.statusCode = 403;
+        return callback(rejected);
       },
       credentials: true,
     })
@@ -122,8 +131,22 @@ const createApp = () => {
   // Strip operator-shaped keys before anything can forward them into a query.
   app.use(sanitizeRequest);
 
+  /*
+   * Request logging, with the sensitive parts of the URL removed first.
+   *
+   * The password-reset token travels in the path, and morgan's `combined`
+   * format writes the whole URL - so a live account-takeover credential was
+   * landing in the access log and outliving the thirty minutes it was meant
+   * to have. safeUrl is the one place that decides what a logged URL may say.
+   */
+  morgan.token('safe-url', (req) => safeUrl(req.originalUrl || req.url));
+
   if (process.env.NODE_ENV !== 'test') {
-    app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+    const PRODUCTION_FORMAT =
+      ':remote-addr - :remote-user [:date[clf]] ":method :safe-url HTTP/:http-version"' +
+      ' :status :res[content-length] ":referrer" ":user-agent"';
+    const DEV_FORMAT = ':method :safe-url :status :response-time[0] ms - :res[content-length]';
+    app.use(morgan(process.env.NODE_ENV === 'production' ? PRODUCTION_FORMAT : DEV_FORMAT));
   }
 
   app.use('/api', globalLimiter);
