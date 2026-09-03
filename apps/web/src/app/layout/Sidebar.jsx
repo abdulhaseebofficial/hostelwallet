@@ -1,15 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  Receipt,
-  Wallet,
-  Target,
-  PieChart,
-  Sparkles,
-  FileBarChart,
-  Settings,
-  X,
-} from 'lucide-react';
+import { FileBarChart, HandCoins, LayoutDashboard, PieChart, Receipt, Settings, Sparkles, Target, Wallet, X } from 'lucide-react';
 import { cn } from '../../shared/utils/format';
 
 export const NAV_ITEMS = [
@@ -17,6 +7,7 @@ export const NAV_ITEMS = [
   { to: '/expenses', label: 'Expenses', icon: Receipt },
   { to: '/income', label: 'Income', icon: Wallet },
   { to: '/goals', label: 'Goals', icon: Target },
+  { to: '/debts', label: 'Udhaar', icon: HandCoins },
   { to: '/budget', label: 'Budget', icon: PieChart },
   { to: '/advisor', label: 'AI Advisor', icon: Sparkles },
   { to: '/reports', label: 'Reports', icon: FileBarChart },

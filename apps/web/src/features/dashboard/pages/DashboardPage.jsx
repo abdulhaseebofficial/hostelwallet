@@ -17,6 +17,7 @@ import { SkeletonStats, SkeletonCard } from '../../../shared/components/ui/Skele
 import StatCard from '../../../shared/components/StatCard';
 import RecentTransactions from '../components/RecentTransactions';
 import GoalsPreview from '../components/GoalsPreview';
+import { DebtWidget } from '../../debts';
 import { BudgetRow } from '../../budgets';
 import CategoryPieChart from '../../../shared/components/charts/CategoryPieChart';
 import TrendChart from '../../../shared/components/charts/TrendChart';
@@ -75,7 +76,7 @@ export default function Dashboard() {
     );
   }
 
-  const { totals, categoryBreakdown, trend, comparison, budgets, goals, recentExpenses, monthLabel } = data;
+  const { totals, categoryBreakdown, trend, comparison, budgets, goals, recentExpenses, monthLabel, debts } = data;
   const overspending = totals.income > 0 && totals.remaining < 0;
   const firstName = user ? user.name.split(' ')[0] : 'there';
 
@@ -180,6 +181,8 @@ export default function Dashboard() {
 
         <div className="space-y-5">
           <GoalsPreview goals={goals} currency={currency} onCreate={() => navigate('/goals')} />
+
+          <DebtWidget debts={debts} currency={currency} />
 
           <Card>
             <CardHeader

@@ -12,6 +12,7 @@
 
 const expenses = require('../expenses/expenses.service');
 const advisor = require('../advisor/advisor.service');
+const debts = require('../debts/debts.service');
 const { buildSnapshot } = require('../analytics/analytics.service');
 const {
   materializeForUser,
@@ -34,9 +35,12 @@ const summary = async (user, query) => {
 
   await materializeForUser(user._id);
 
-  const [snapshot, recent] = await Promise.all([
+  const [snapshot, recent, debtPosition] = await Promise.all([
     buildSnapshot(user, period),
     expenses.listRecent(user._id, RECENT_EXPENSE_COUNT),
+    // Fetched here rather than by a second request from the browser, and never
+    // recomputed there: the debt totals are exact decimal sums in SQL.
+    debts.summary(user._id),
   ]);
 
   // Fire and forget: the student should not wait on the alert rules.
@@ -74,6 +78,11 @@ const summary = async (user, query) => {
     budgets: snapshot.budgets,
     goals: snapshot.goals,
     recentExpenses: recent.items,
+
+    // Deliberately its own block, not folded into `totals`. Debt principal is
+    // neither income nor spending - see debts.service - so mixing it into the
+    // month's figures would make both of them lie.
+    debts: debtPosition,
 
     aiConfigured: advisor.isConfigured(),
   };

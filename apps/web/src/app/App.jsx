@@ -19,6 +19,7 @@ const Dashboard = lazy(() => import('../features/dashboard/pages/DashboardPage')
 const Expenses = lazy(() => import('../features/expenses/pages/ExpensesPage'));
 const Income = lazy(() => import('../features/income/pages/IncomePage'));
 const Goals = lazy(() => import('../features/goals/pages/GoalsPage'));
+const Debts = lazy(() => import('../features/debts/pages/DebtsPage'));
 const Budget = lazy(() => import('../features/budgets/pages/BudgetPage'));
 const AIAdvisor = lazy(() => import('../features/advisor/pages/AdvisorPage'));
 const Reports = lazy(() => import('../features/reports/pages/ReportsPage'));
@@ -52,6 +53,7 @@ export default function App() {
                   <Route path="/expenses" element={<Expenses />} />
                   <Route path="/income" element={<Income />} />
                   <Route path="/goals" element={<Goals />} />
+                  <Route path="/debts" element={<Debts />} />
                   <Route path="/budget" element={<Budget />} />
                   <Route path="/advisor" element={<AIAdvisor />} />
                   <Route path="/reports" element={<Reports />} />
