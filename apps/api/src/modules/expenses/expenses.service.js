@@ -11,29 +11,32 @@
  */
 
 const expensesRepo = require('./expenses.repository');
-const users = require('../users/users.service');
+const { isOwnCategory } = require('../../shared/categories');
 const ApiError = require('../../shared/errors/ApiError');
 const {
   firstRunAfter,
   materializeForUser,
 } = require('../../infrastructure/scheduling/recurringExpenses.job');
-const { runChecksForUser } = require('../notifications/notifications.service');
+const events = require('../../shared/events');
 
 const DEFAULT_PAYMENT_METHOD = 'Cash';
 const DEFAULT_FREQUENCY = 'monthly';
 
 const assertOwnCategory = (user, category) => {
-  if (!users.allCategories(user).includes(category)) {
+  if (!isOwnCategory(user, category)) {
     throw ApiError.badRequest(`"${category}" is not one of your categories`);
   }
 };
 
 /**
- * Alerts are refreshed after a write, but the student should not wait on it -
- * the expense is already saved and the alert is not part of the answer.
+ * Announces a write, once the row is committed.
+ *
+ * Whether that means an alert is notifications' business, not this module's.
+ * Fire and forget, as it was before: the expense is already saved and the
+ * student should not wait on something that is not part of their answer.
  */
-const refreshAlerts = (user) => {
-  runChecksForUser(user).catch((err) => console.error('[notifications]', err.message));
+const announce = (user, expense, action) => {
+  events.emit(events.EXPENSE_WRITTEN, { user, expense, action });
 };
 
 /** Filtered, sorted, paginated, with the sum of the filtered set. */
@@ -76,7 +79,7 @@ const create = async (user, input) => {
     nextRunAt: isRecurring ? firstRunAfter(when, frequency) : null,
   });
 
-  refreshAlerts(user);
+  announce(user, expense, 'created');
   return expense;
 };
 
@@ -115,7 +118,7 @@ const update = async (id, user, body) => {
   }
 
   const expense = await expensesRepo.update(id, user._id, patch);
-  refreshAlerts(user);
+  announce(user, expense, 'updated');
   return expense;
 };
 

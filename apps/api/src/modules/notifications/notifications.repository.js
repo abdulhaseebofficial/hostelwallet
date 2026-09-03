@@ -12,7 +12,10 @@ const list = async (userId, { limit = 20, unreadOnly = false } = {}) => {
       WHERE user_id = $1 ${unreadOnly ? 'AND NOT is_read' : ''}
       ORDER BY created_at DESC, id DESC
       LIMIT $2`,
-    [userId, Math.min(50, Number(limit) || 20)]
+    // Clamped at both ends: an upper bound stops a caller asking for the whole
+    // table, and a lower bound stops a negative reaching Postgres, where
+    // `LIMIT -5` is an error rather than an empty page.
+    [userId, Math.min(50, Math.max(1, Number(limit) || 20))]
   );
   return toApiList(rows);
 };

@@ -191,9 +191,6 @@ const updateProfile = async (userId, patch) => {
   return toApi(row);
 };
 
-/** Every category this user can pick from. */
-const allCategories = (user) => [...DEFAULT_CATEGORIES, ...((user && user.customCategories) || [])];
-
 const remove = async (userId) => {
   // Every child table is ON DELETE CASCADE, so one statement is enough.
   const rows = await query(`DELETE FROM users WHERE id = $1 RETURNING id`, [userId]);
@@ -212,6 +209,5 @@ module.exports = {
   findByResetToken,
   revokeAllSessions,
   updateProfile,
-  allCategories,
   remove,
 };

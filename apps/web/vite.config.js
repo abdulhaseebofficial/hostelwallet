@@ -15,6 +15,15 @@ export default defineConfig({
       },
     },
   },
+  // Tests run in the same config as the build, so a component that compiles
+  // for production is the one being asserted against.
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./vitest.setup.js'],
+    include: ['src/**/*.test.jsx', 'src/**/*.test.js'],
+    globals: true,
+  },
+
   build: {
     outDir: 'dist',
     sourcemap: false,

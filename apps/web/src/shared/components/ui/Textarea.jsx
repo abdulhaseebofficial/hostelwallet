@@ -1,8 +1,10 @@
-import { forwardRef } from 'react';
+import { forwardRef, useId } from 'react';
 import { cn } from '../../utils/format';
 
 const Textarea = forwardRef(function Textarea({ label, error, hint, className = '', id, rows = 3, ...props }, ref) {
-  const textareaId = id || props.name;
+  // See Input.jsx: without a fallback the label points at nothing.
+  const generatedId = useId();
+  const textareaId = id || props.name || generatedId;
 
   return (
     <div className={className}>

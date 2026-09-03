@@ -15,11 +15,7 @@
 const ai = require('./advisor.ai');
 const chatRepo = require('./advisor.repository');
 const ApiError = require('../../shared/errors/ApiError');
-const lazyModule = require('../../shared/modules/lazyModule');
-
-// users asks the advisor for the chat history when exporting an account, so
-// this edge is deferred to keep the two from loading into each other.
-const users = lazyModule(() => require('../users/users.service'));
+const { allCategories } = require('../../shared/categories');
 const { buildSnapshot, buildWeeklySnapshot } = require('../analytics/analytics.service');
 const { currentPeriod } = require('../../shared/utils/calculations');
 
@@ -148,7 +144,7 @@ const dailyTip = async (user, { refresh = false } = {}) => {
  */
 const suggestBudget = async (user, body) => {
   const snapshot = await buildSnapshot(user, periodFrom(body));
-  const categories = users.allCategories(user);
+  const categories = allCategories(user);
 
   const result = await ai.suggestBudget({ user, snapshot, categories });
 

@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useId } from 'react';
 import { cn } from '../../utils/format';
 
 /** `options` accepts plain strings or { value, label } objects. */
@@ -6,7 +6,9 @@ const Select = forwardRef(function Select(
   { label, error, hint, options = [], placeholder, className = '', id, ...props },
   ref
 ) {
-  const selectId = id || props.name;
+  // See Input.jsx: without a fallback the label points at nothing.
+  const generatedId = useId();
+  const selectId = id || props.name || generatedId;
 
   return (
     <div className={className}>

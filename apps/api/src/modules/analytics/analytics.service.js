@@ -10,12 +10,7 @@
  */
 
 const analytics = require('./analytics.repository');
-const lazyModule = require('../../shared/modules/lazyModule');
 
-// budgets and goals both build on analytics, so requiring them at load time
-// would close the circle before either had finished exporting.
-const budgetsService = lazyModule(() => require('../budgets/budgets.service'));
-const goalsService = lazyModule(() => require('../goals/goals.service'));
 
 const {
   startOfMonth,
@@ -80,7 +75,7 @@ const budgetProgress = async (userId, month, year) => {
   const from = startOfMonth(year, month);
   const to = endOfMonth(year, month);
   const [budgets, { byCategory }] = await Promise.all([
-    budgetsService.listForPeriod(userId, month, year),
+    analytics.budgetLimitsFor(userId, month, year),
     categoryTotals(userId, from, to),
   ]);
 
@@ -126,7 +121,7 @@ const buildSnapshot = async (user, period = currentPeriod()) => {
       categoryTotals(user._id, from, to),
       dailyTrend(user._id, from, to),
       budgetProgress(user._id, month, year),
-      goalsService.listOpen(user._id, 5),
+      analytics.openGoalsFor(user._id, 5),
       totalSpent(user._id, prevFrom, prevTo),
       analytics.countExpenses(user._id, from, to),
     ]);

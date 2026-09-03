@@ -1,11 +1,21 @@
 /**
- * The aggregate queries behind the dashboard, the reports page and the AI
- * advisor. Plain GROUP BY queries, returning a `{ _id, total }` row shape so
- * the pure helpers in utils/calculations.js (shapeCategoryTotals) can stay
- * ignorant of where the numbers came from.
+ * The read side.
+ *
+ * Two kinds of query live here. The aggregates - plain GROUP BY, returning a
+ * `{ _id, total }` row shape so the pure helpers in utils/calculations.js can
+ * stay ignorant of where the numbers came from. And a small number of plain
+ * reads of rows that other features own.
+ *
+ * That second kind is deliberate. A monthly snapshot is limits, goals and
+ * spending seen together; fetching the first two through the budgets and goals
+ * services made analytics depend on the very modules that depend on it for
+ * their progress figures. These are reads, not rules - no limit is decided
+ * here, no goal is completed here - so owning the SELECT costs nothing but
+ * removes the circle.
  */
 
 const { query, queryOne } = require('../../infrastructure/database/pool');
+const { toApiList } = require('../../infrastructure/database/rows');
 
 /** Total expenses grouped by category, biggest first. */
 const categoryTotals = async (userId, from, to) => {
@@ -88,8 +98,35 @@ const topExpenses = async (userId, from, to, limit = 5) => {
   }));
 };
 
+/**
+ * The category limits a student set for a month, so budgetProgress can put
+ * them beside what was actually spent. Ordered by category to match how the
+ * budgets screen lists them.
+ */
+const budgetLimitsFor = async (userId, month, year) => {
+  const rows = await query(
+    `SELECT id, user_id, category, "limit", month, year, created_at, updated_at
+       FROM budgets WHERE user_id = $1 AND month = $2 AND year = $3
+       ORDER BY category`,
+    [userId, month, year]
+  );
+  return toApiList(rows);
+};
+
+/** The open goals a snapshot shows, nearest deadline first. */
+const openGoalsFor = async (userId, limit = 5) => {
+  const rows = await query(
+    `SELECT * FROM goals WHERE user_id = $1 AND NOT is_completed
+      ORDER BY deadline NULLS LAST LIMIT $2`,
+    [userId, limit]
+  );
+  return toApiList(rows);
+};
+
 module.exports = {
   categoryTotals,
+  budgetLimitsFor,
+  openGoalsFor,
   totalSpent,
   totalIncome,
   dailyTotals,

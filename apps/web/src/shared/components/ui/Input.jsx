@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useId } from 'react';
 import { cn } from '../../utils/format';
 
 /**
@@ -13,7 +13,12 @@ const Input = forwardRef(function Input(
   { label, error, hint, prefix, suffix, className = '', id, ...props },
   ref
 ) {
-  const inputId = id || props.name;
+  // A label is only a label if it points at something. `id` and `name` are
+  // both optional - a field driven by useState rather than react-hook-form has
+  // neither - and without one the htmlFor below pointed at nothing, leaving the
+  // field unlabelled for anyone using a screen reader.
+  const generatedId = useId();
+  const inputId = id || props.name || generatedId;
 
   return (
     <div className={className}>

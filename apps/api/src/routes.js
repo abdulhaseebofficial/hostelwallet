@@ -13,6 +13,7 @@ const registerRoutes = (app) => {
   app.use('/api/expenses', require('./modules/expenses/expenses.routes'));
   app.use('/api/income', require('./modules/income/income.routes'));
   app.use('/api/goals', require('./modules/goals/goals.routes'));
+  app.use('/api/debts', require('./modules/debts/debts.routes'));
   app.use('/api/budget', require('./modules/budgets/budgets.routes'));
   app.use('/api/dashboard', require('./modules/dashboard/dashboard.routes'));
   app.use('/api/ai', require('./modules/advisor/advisor.routes'));

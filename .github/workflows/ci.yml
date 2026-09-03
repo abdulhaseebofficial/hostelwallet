@@ -25,8 +25,17 @@ jobs:
       - name: Check the layering rules
         run: npm run check:boundaries
 
+      - name: Check for shadowed module bindings
+        run: npm run check:shadowing
+
+      - name: Check for code nothing reaches
+        run: npm run check:dead
+
       - name: Unit tests
         run: npm run test:unit
+
+      - name: Frontend component tests
+        run: npm run test:web
 
       - name: Production build
         run: npm run build

@@ -22,21 +22,29 @@ const ROOT = path.join(__dirname, '..').split(path.sep).join('/');
 const SKIP = new Set(['node_modules', '.git', 'dist', '.vercel', 'coverage']);
 const CODE = ['.js', '.jsx', '.mjs', '.cjs'];
 
-/** Where execution actually begins. Everything else has to be reachable. */
-const ENTRIES = [
+/**
+ * Where execution actually begins. Everything else has to be reachable.
+ *
+ * The application entry points are listed because there are few and they are
+ * deliberate. Everything a runner invokes directly is discovered instead -
+ * anything under tests/ or scripts/, every *.test.js(x) wherever it lives, and
+ * the test setup file - because listing those by hand only means the next new
+ * test trips this check on the day it is written.
+ */
+const FIXED_ENTRIES = [
   'apps/api/server.js',
   'apps/api/src/infrastructure/database/migrate.js',
   'apps/web/src/main.jsx',
   'database/seeds/demo.js',
-  'scripts/check-boundaries.js',
-  'scripts/find-dead-code.js',
-  'tests/e2e/api.test.js',
-  'tests/e2e/settings.test.js',
-  'tests/migrations/fresh-schema.test.js',
-  'tests/unit/calculations.test.js',
-  'tests/unit/reports-csv.test.js',
-  'tests/unit/ai-provider.test.js',
 ];
+
+const discoverEntries = (dir) => {
+  const full = path.join(ROOT, dir).split(path.sep).join('/');
+  if (!fs.existsSync(full)) return [];
+  return walk(full)
+    .filter((f) => /\.(js|jsx)$/.test(f))
+    .map((f) => f.replace(ROOT + '/', ''));
+};
 
 /** Reachable, but not by an import a scanner can follow. */
 const EXPECTED_UNREACHABLE = {
@@ -82,6 +90,12 @@ function resolve(fromFile, spec) {
 
 // --- what is reachable ---------------------------------------------------
 const reached = new Set();
+const ENTRIES = FIXED_ENTRIES
+  .concat(discoverEntries('tests'))
+  .concat(discoverEntries('scripts'))
+  // Co-located component tests and the runner's own setup file.
+  .concat(code.filter((f) => /\.test\.jsx?$/.test(f) || /vitest\.setup\.js$/.test(f)).map(rel));
+
 const queue = ENTRIES.map((e) => ROOT + '/' + e).filter((f) => all.includes(f));
 
 while (queue.length) {

@@ -13,7 +13,7 @@
 const goalsRepo = require('./goals.repository');
 const ApiError = require('../../shared/errors/ApiError');
 const { goalPace, round2 } = require('../../shared/utils/calculations');
-const { push } = require('../notifications/notifications.service');
+const events = require('../../shared/events');
 const { DEFAULT_GOAL_ICON } = require('../../shared/constants');
 
 /** Adds the derived pace fields the UI needs on top of the stored row. */
@@ -97,9 +97,9 @@ const update = async (id, userId, body) => {
 /**
  * Add to a goal, or take money back out with a negative amount.
  *
- * Returns `justCompleted` so the UI can celebrate, and raises the notification
- * here rather than in the controller - reaching a goal is a fact about the
- * goal, not about the request that happened to cause it.
+ * Returns `justCompleted` so the UI can celebrate, and announces the fact so
+ * anything that cares can react - reaching a goal is a fact about the goal,
+ * not about the request that happened to cause it.
  */
 const contribute = async (user, id, rawAmount, note) => {
   const amount = Number(rawAmount);
@@ -117,15 +117,11 @@ const contribute = async (user, id, rawAmount, note) => {
   }
   if (!goal) throw ApiError.notFound('Goal not found');
 
+  // Announced after the contribution is committed, and awaited, so whatever
+  // listens has finished by the time the response says the goal was reached.
   const justCompleted = !wasCompleted && goal.isCompleted;
   if (justCompleted) {
-    await push(user._id, {
-      type: 'goal_completed',
-      title: `Goal reached: ${goal.title}`,
-      message: `You saved the full ${user.currency} ${goal.targetAmount}. That is real discipline. Time to set the next one!`,
-      meta: { goalId: goal._id },
-      dedupeKey: `goal-done:${goal._id}`,
-    });
+    await events.emitAndWait(events.GOAL_REACHED, { user, goal });
   }
 
   return { goal: decorate(goal), justCompleted, withdrawn: amount < 0 };

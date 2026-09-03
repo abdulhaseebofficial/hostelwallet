@@ -22,6 +22,7 @@ const sanitizeRequest = require('./shared/middleware/sanitize');
 const { notFound, errorHandler } = require('./shared/middleware/errorHandler');
 const { globalLimiter } = require('./shared/middleware/rateLimiter');
 const registerRoutes = require('./routes');
+const notificationSubscriptions = require('./modules/notifications/notifications.subscriptions');
 const {
   DEFAULT_CATEGORIES,
   PAYMENT_METHODS,
@@ -78,6 +79,12 @@ const createBootstrap = () => {
 const createApp = () => {
   const app = express();
   const origins = allowedOrigins();
+
+  // Notifications reacts to what expenses and goals announce. Subscribing here
+  // rather than at import time means requiring a module never has an opinion
+  // about the bus, and a test can build an app without inheriting listeners
+  // from the last one.
+  notificationSubscriptions.register();
 
   /* ------------------------ security & parsing ---------------------- */
 

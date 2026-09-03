@@ -10,7 +10,7 @@
  */
 
 const budgetsRepo = require('./budgets.repository');
-const users = require('../users/users.service');
+const { allCategories, isOwnCategory } = require('../../shared/categories');
 const ApiError = require('../../shared/errors/ApiError');
 const { currentPeriod, round2 } = require('../../shared/utils/calculations');
 const { budgetProgress } = require('../analytics/analytics.service');
@@ -25,7 +25,7 @@ const periodFrom = (source = {}) => {
 };
 
 const assertOwnCategory = (user, category) => {
-  if (!users.allCategories(user).includes(category)) {
+  if (!isOwnCategory(user, category)) {
     throw ApiError.badRequest(`"${category}" is not one of your categories`);
   }
 };
@@ -85,7 +85,7 @@ const setPlan = async (user, body, query) => {
   }
 
   const { month, year } = periodFrom({ ...query, ...body });
-  const allowed = users.allCategories(user);
+  const allowed = allCategories(user);
 
   const valid = items.filter(
     (item) => allowed.includes(item.category) && Number(item.limit) >= 0

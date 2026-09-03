@@ -9,12 +9,10 @@
  */
 
 const notificationsRepo = require('./notifications.repository');
-const lazyModule = require('../../shared/modules/lazyModule');
-
-// goals raises a notification when one is reached, and writing an expense
-// refreshes these very checks, so both edges are deferred.
-const expenses = lazyModule(() => require('../expenses/expenses.service'));
-const goals = lazyModule(() => require('../goals/goals.service'));
+// Plain requires: expenses and goals announce what they did rather than
+// calling in here, so nothing points back and there is no circle to defer.
+const expenses = require('../expenses/expenses.service');
+const goals = require('../goals/goals.service');
 const { budgetProgress } = require('../analytics/analytics.service');
 const { currentPeriod, daysBetween } = require('../../shared/utils/calculations');
 
@@ -63,10 +61,12 @@ const checkOverspending = async (user) => {
 
 /** Remind about goals whose deadline is within a week (and overdue ones). */
 const checkGoalDeadlines = async (user) => {
-  const goals = await goals.listDueSoon(user._id, 7);
+  // Named apart from the module it comes from: `const goals = await goals...`
+  // shadows the import and fails at runtime, which is exactly what happened.
+  const dueSoon = await goals.listDueSoon(user._id, 7);
 
   const created = [];
-  for (const goal of goals) {
+  for (const goal of dueSoon) {
     const daysLeft = daysBetween(new Date(), new Date(goal.deadline));
     const remaining = Math.max(0, goal.targetAmount - goal.savedAmount);
     const overdue = daysLeft < 0;

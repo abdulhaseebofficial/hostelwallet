@@ -11,17 +11,18 @@
  */
 
 const usersRepo = require('./users.repository');
-const lazyModule = require('../../shared/modules/lazyModule');
-
-// Almost every feature asks users for the current account, so requiring
-// them here at load time would close a circle with each of them.
-const expenses = lazyModule(() => require('../expenses/expenses.service'));
-const income = lazyModule(() => require('../income/income.service'));
-const goals = lazyModule(() => require('../goals/goals.service'));
-const budgets = lazyModule(() => require('../budgets/budgets.service'));
-const advisor = lazyModule(() => require('../advisor/advisor.service'));
+// Plain requires. These used to be deferred because each of these modules
+// asked users for the current account, closing a circle. They no longer do:
+// the category check moved to shared/categories and the alert refresh became
+// an event, so the dependency runs one way and there is nothing to defer.
+const expenses = require('../expenses/expenses.service');
+const income = require('../income/income.service');
+const goals = require('../goals/goals.service');
+const budgets = require('../budgets/budgets.service');
+const advisor = require('../advisor/advisor.service');
 const ApiError = require('../../shared/errors/ApiError');
-const { DEFAULT_CATEGORIES, DEFAULT_GOAL_ICON } = require('../../shared/constants');
+const { DEFAULT_GOAL_ICON } = require('../../shared/constants');
+const { allCategories, DEFAULT_CATEGORIES } = require('../../shared/categories');
 
 const EXPORT_CHAT_LIMIT = 1000;
 
@@ -75,7 +76,7 @@ const completeOnboarding = async (userId, body) => {
 const listCategories = (user) => ({
   defaults: DEFAULT_CATEGORIES,
   custom: user.customCategories,
-  all: usersRepo.allCategories(user),
+  all: allCategories(user),
 });
 
 const addCategory = async (user, rawName) => {
@@ -83,7 +84,7 @@ const addCategory = async (user, rawName) => {
   if (!name) throw ApiError.badRequest('Category name is required');
 
   // Case-insensitive, so "travel" cannot sit beside the built-in "Travel".
-  const existing = usersRepo.allCategories(user).map((c) => c.toLowerCase());
+  const existing = allCategories(user).map((c) => c.toLowerCase());
   if (existing.includes(name.toLowerCase())) {
     throw ApiError.conflict('That category already exists');
   }
@@ -92,7 +93,7 @@ const addCategory = async (user, rawName) => {
     customCategories: [...user.customCategories, name],
   });
 
-  return { name, all: usersRepo.allCategories(updated) };
+  return { name, all: allCategories(updated) };
 };
 
 /**
@@ -117,7 +118,7 @@ const removeCategory = async (user, rawName) => {
     customCategories: user.customCategories.filter((c) => c !== name),
   });
 
-  return { name, all: usersRepo.allCategories(updated) };
+  return { name, all: allCategories(updated) };
 };
 
 /* ------------------------------ account ----------------------------- */
@@ -196,7 +197,6 @@ const revokeAllSessions = (userId) => usersRepo.revokeAllSessions(userId);
 
 const findById = (userId, options) => usersRepo.findById(userId, options);
 
-const allCategories = (user) => usersRepo.allCategories(user);
 
 module.exports = {
   toPublic,
@@ -216,5 +216,4 @@ module.exports = {
   findByResetToken,
   revokeAllSessions,
   findById,
-  allCategories,
 };
