@@ -54,6 +54,17 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   token = r.data?.data?.accessToken;
 
   section('DASHBOARD');
+
+  // The breakdown assertion below needs spending in the current month, so this
+  // suite creates it rather than assuming a previous run left some behind: the
+  // account is emptied at the end, which made the second run of the day fail.
+  r = await call('POST', '/expenses', {
+    amount: 120, category: 'Mess/Food', description: 'QA dashboard seed',
+    paymentMethod: 'Cash', date: new Date().toISOString(),
+  }, token);
+  const dashSeedId = r.data?.data?.expense?._id;
+  ok('a dashboard figure exists to report on', r.status === 201 && !!dashSeedId, `-> ${r.status}`);
+
   r = await call('GET', '/dashboard/summary', undefined, token);
   const dash = r.data?.data;
   ok('dashboard summary loads', r.status === 200 && !!dash, `-> ${r.status}`);
@@ -63,6 +74,11 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   ok('has a daily trend', Array.isArray(dash?.trend) && dash.trend.length > 0, `${dash?.trend?.length} days`);
   ok('remaining = income - spent', dash && Math.abs((dash.totals.income - dash.totals.spent) - dash.totals.remaining) < 0.01,
     `${dash?.totals?.income} - ${dash?.totals?.spent} = ${dash?.totals?.remaining}`);
+
+  // Put the account back as it was found, so the counts the next section
+  // asserts on are not shifted by this one.
+  r = await call('DELETE', `/expenses/${dashSeedId}`, undefined, token);
+  ok('the dashboard seed is cleaned up', r.status === 200, `-> ${r.status}`);
 
   section('EXPENSES — full CRUD');
   r = await call('GET', '/expenses?limit=5', undefined, token);
@@ -126,6 +142,39 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   r = await call('GET', `/budget?month=${now.getMonth() + 1}&year=${now.getFullYear()}`, undefined, token);
   ok('list budgets', r.status === 200 && Array.isArray(r.data?.data?.items), `${r.data?.data?.items?.length} rows`);
   ok('budget totals present', typeof r.data?.data?.totals?.limit === 'number', `limit=${r.data?.data?.totals?.limit}`);
+
+  // budgetProgress joins the limits a student set with what they actually
+  // spent. analytics reads those limits through its own query now rather than
+  // through the budgets service, so pin the shape and the arithmetic: a wrong
+  // join here would still return 200 with plausible-looking numbers.
+  const progressRow = (r.data?.data?.items || [])[0];
+  ok('a budget row carries limit, spent and remaining',
+    progressRow && ['_id', 'category', 'limit', 'spent', 'remaining', 'usedPercent', 'status', 'month', 'year']
+      .every((k) => k in progressRow),
+    progressRow ? Object.keys(progressRow).join(', ') : 'no rows');
+  ok('remaining is limit minus spent',
+    progressRow && Math.abs((progressRow.limit - progressRow.spent) - progressRow.remaining) < 0.01,
+    progressRow ? `${progressRow.limit} - ${progressRow.spent} = ${progressRow.remaining}` : '-');
+  ok('usedPercent matches spent against limit',
+    progressRow && (progressRow.limit === 0
+      ? progressRow.usedPercent === 0
+      : Math.abs(progressRow.usedPercent - Math.round((progressRow.spent / progressRow.limit) * 100)) <= 1),
+    progressRow ? `${progressRow.usedPercent}%` : '-');
+  ok('status is one of the four traffic lights',
+    progressRow && ['none', 'safe', 'warning', 'over'].includes(progressRow.status),
+    progressRow?.status);
+  ok('the row is for the month asked for',
+    progressRow && progressRow.month === r.data.data.month && progressRow.year === r.data.data.year,
+    progressRow ? `${progressRow.month}/${progressRow.year}` : '-');
+
+  // The same figures reach the dashboard and the AI snapshot through
+  // buildSnapshot, so they must agree with what /budget just returned.
+  const snapshot = await call('GET', '/dashboard/summary', undefined, token);
+  const dashBudget = (snapshot.data?.data?.budgets || []).find((b) => b.category === progressRow?.category);
+  ok('the dashboard sees the same budget figures',
+    dashBudget && Math.abs(dashBudget.limit - progressRow.limit) < 0.01
+      && Math.abs(dashBudget.spent - progressRow.spent) < 0.01,
+    dashBudget ? `${dashBudget.category}: ${dashBudget.limit}/${dashBudget.spent}` : 'not found');
   r = await call('POST', '/budget', { category: 'Travel', limit: -100 }, token);
   ok('a negative limit is rejected', r.status === 400, `-> ${r.status}`);
 
@@ -167,8 +216,143 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   section('NOTIFICATIONS');
   r = await call('GET', '/notifications', undefined, token);
   ok('list notifications', r.status === 200 && Array.isArray(r.data?.data?.items), `${r.data?.data?.items?.length} items, ${r.data?.data?.unreadCount} unread`);
+
+  // Running the alert rules on demand. This answered 200 for two commits while
+  // one of its four checks threw on every call, because Promise.allSettled
+  // turns a rejection into a logged warning - so assert what came back, not
+  // just the status.
+  r = await call('POST', '/notifications/check', undefined, token);
+  ok('the alert rules run', r.status === 200, `-> ${r.status}`);
+  ok('and report what they created', typeof r.data?.data?.created === 'number' && Array.isArray(r.data?.data?.items),
+    `created=${r.data?.data?.created}`);
+
+  // Re-running must not duplicate: every alert carries a dedupe key.
+  const firstRun = await call('POST', '/notifications/check', undefined, token);
+  const secondRun = await call('POST', '/notifications/check', undefined, token);
+  ok('re-running the checks creates nothing new', secondRun.data?.data?.created === 0,
+    `first=${firstRun.data?.data?.created}, second=${secondRun.data?.data?.created}`);
+
+  // The list query is deliberately lenient - these all worked before the
+  // validator was added and must keep working.
+  for (const q of ['limit=abc', 'limit=999999', 'limit=5', 'unread=true', 'unread=maybe', 'unread=false']) {
+    r = await call('GET', `/notifications?${q}`, undefined, token);
+    ok(`?${q} is accepted`, r.status === 200, `-> ${r.status}`);
+  }
+  // A negative limit reached Postgres as `LIMIT -5` and came back a 500.
+  r = await call('GET', '/notifications?limit=-5', undefined, token);
+  ok('a negative limit is handled, not a 500', r.status === 200, `-> ${r.status}`);
+
+  r = await call('GET', '/notifications?limit=3', undefined, token);
+  ok('limit is honoured', (r.data?.data?.items?.length || 0) <= 3, `${r.data?.data?.items?.length} items`);
+
+  // Malformed ids are refused the way every other module refuses them.
+  for (const [method, path] of [['PATCH', '/notifications/not-a-uuid/read'], ['DELETE', '/notifications/not-a-uuid']]) {
+    r = await call(method, path, undefined, token);
+    ok(`${method} with a malformed id is a 400`, r.status === 400, `-> ${r.status}`);
+    ok('and says which field', r.data?.errors?.[0]?.field === 'id', r.data?.errors?.[0]?.message);
+  }
+
+  // A well-formed id for something that is not there is a 404, not a 400.
+  r = await call('PATCH', '/notifications/00000000-0000-0000-0000-000000000000/read', undefined, token);
+  ok('a well-formed unknown id is a 404', r.status === 404, `-> ${r.status}`);
+
+  // Every notification route needs a session.
+  for (const [method, path] of [['GET', '/notifications'], ['POST', '/notifications/check'],
+    ['PATCH', '/notifications/read-all'], ['DELETE', '/notifications']]) {
+    r = await call(method, path);
+    ok(`${method} ${path} needs a token`, r.status === 401, `-> ${r.status}`);
+  }
+
   r = await call('PATCH', '/notifications/read-all', undefined, token);
   ok('mark all read', r.status === 200, `-> ${r.status}`);
+  r = await call('GET', '/notifications', undefined, token);
+  ok('and the unread count is now zero', r.data?.data?.unreadCount === 0, `${r.data?.data?.unreadCount} unread`);
+
+  section('EVENTS - a write announces, notifications reacts');
+
+  // A fresh account, so nothing else has already raised these alerts.
+  const evEmail = `events-${Date.now()}@example.com`;
+  r = await call('POST', '/auth/register', {
+    name: 'Events Student', email: evEmail,
+    password: 'eventspass123', confirmPassword: 'eventspass123',
+  });
+  const evToken = r.data?.data?.accessToken;
+  ok('a fresh account for the event checks', r.status === 201, `-> ${r.status}`);
+
+  r = await call('GET', '/notifications', undefined, evToken);
+  ok('it starts with an empty tray', (r.data?.data?.items?.length || 0) === 0,
+    `${r.data?.data?.items?.length} items`);
+
+  // A small limit, then an expense that blows straight through it. Nothing
+  // here mentions notifications - the expense write announces, and the alert
+  // rules are what decide that means something.
+  r = await call('POST', '/budget', { category: 'Travel', limit: 100 }, evToken);
+  ok('a small budget is set', r.status === 201, `-> ${r.status}`);
+
+  r = await call('POST', '/expenses', { amount: 500, category: 'Travel', description: 'Overspend trigger' }, evToken);
+  ok('the expense is written', r.status === 201, `-> ${r.status}`);
+  const evExpenseId = r.data?.data?.expense?._id;
+
+  // The announcement is fire and forget, so give the listener a moment.
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+
+  r = await call('GET', '/notifications', undefined, evToken);
+  const overspend = (r.data?.data?.items || []).filter((n) => n.type === 'overspend');
+  ok('writing the expense raised an overspend alert', overspend.length >= 1,
+    `${overspend.length} overspend alert(s)`);
+  ok('and it names the category that went over',
+    overspend.some((n) => `${n.title} ${n.message}`.includes('Travel')),
+    overspend[0]?.title);
+
+  // Writing again must not raise the same alert twice - that is what the
+  // dedupe key on each notification is for.
+  const beforeSecond = (r.data?.data?.items || []).length;
+  r = await call('POST', '/expenses', { amount: 300, category: 'Travel', description: 'Second overspend' }, evToken);
+  ok('a second expense is written', r.status === 201, `-> ${r.status}`);
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+
+  r = await call('GET', '/notifications', undefined, evToken);
+  const afterSecond = (r.data?.data?.items || []).filter((n) => n.type === 'overspend').length;
+  ok('the same overspend is not raised twice', afterSecond === overspend.length,
+    `${overspend.length} -> ${afterSecond}`);
+
+  // A write that fails must announce nothing.
+  const trayBefore = (r.data?.data?.items || []).length;
+  r = await call('POST', '/expenses', { amount: -50, category: 'Travel' }, evToken);
+  ok('an invalid expense is refused', r.status === 400, `-> ${r.status}`);
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  r = await call('GET', '/notifications', undefined, evToken);
+  ok('and a refused write announces nothing', (r.data?.data?.items?.length || 0) === trayBefore,
+    `${trayBefore} -> ${r.data?.data?.items?.length}`);
+
+  // Reaching a goal is announced too, and awaited - so the notification is
+  // already in the tray by the time the response says the goal was reached.
+  r = await call('POST', '/goals', { title: 'Event Goal', targetAmount: 200 }, evToken);
+  const evGoalId = r.data?.data?.goal?._id;
+  ok('a goal is created', r.status === 201, `-> ${r.status}`);
+
+  r = await call('PATCH', `/goals/${evGoalId}/add`, { amount: 200 }, evToken);
+  ok('funding it reports the goal reached', r.data?.data?.justCompleted === true, `-> ${r.status}`);
+
+  r = await call('GET', '/notifications', undefined, evToken);
+  const reached = (r.data?.data?.items || []).filter((n) => n.type === 'goal_completed');
+  ok('and the celebration is already in the tray', reached.length === 1,
+    `${reached.length} goal_completed`);
+  ok('naming the goal', reached[0]?.title?.includes('Event Goal'), reached[0]?.title);
+
+  // Taking money out and putting it back must not celebrate a second time.
+  await call('PATCH', `/goals/${evGoalId}/add`, { amount: -50 }, evToken);
+  await call('PATCH', `/goals/${evGoalId}/add`, { amount: 50 }, evToken);
+  r = await call('GET', '/notifications', undefined, evToken);
+  ok('re-reaching the same goal does not celebrate twice',
+    (r.data?.data?.items || []).filter((n) => n.type === 'goal_completed').length === 1);
+
+  // The expense itself still behaves exactly as before.
+  r = await call('GET', `/expenses/${evExpenseId}`, undefined, evToken);
+  ok('the expense that triggered all this is intact',
+    r.status === 200 && r.data?.data?.expense?.amount === 500, `-> ${r.status}`);
+
+  await call('DELETE', '/profile', { password: 'eventspass123' }, evToken);
 
   section('FEEDBACK');
   r = await call('POST', '/feedback', { type: 'Bug', rating: 4, message: 'QA automated check of the feedback route.', page: '/dashboard' }, token);
@@ -177,6 +361,127 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   ok('a too-short message is rejected', r.status === 400, `-> ${r.status}`);
   r = await call('GET', '/feedback/mine', undefined, token);
   ok('my feedback lists', r.status === 200 && r.data.data.items.length > 0, `${r.data?.data?.items?.length} items`);
+
+  section('COVERAGE - income, feedback, reports, dashboard');
+
+  // A private account, so these assertions are about what this student did and
+  // not about whatever the demo data happens to contain.
+  const covEmail = `coverage-${Date.now()}@example.com`;
+  r = await call('POST', '/auth/register', {
+    name: 'Coverage Student', email: covEmail,
+    password: 'coverpass123', confirmPassword: 'coverpass123',
+  });
+  const covToken = r.data?.data?.accessToken;
+  ok('a private account for the coverage checks', r.status === 201, `-> ${r.status}`);
+
+  /* ------------------------------ income ---------------------------- */
+
+  r = await call('POST', '/income', { amount: 20000, source: 'Pocket Money', note: 'September' }, covToken);
+  ok('income is logged', r.status === 201, `-> ${r.status}`);
+  const covIncomeId = r.data?.data?.income?._id;
+
+  r = await call('POST', '/income', { amount: 5000, source: 'Part-time Job' }, covToken);
+  ok('a second source is logged', r.status === 201, `-> ${r.status}`);
+
+  r = await call('GET', '/income/summary', undefined, covToken);
+  ok('the summary totals every source', r.data?.data?.total === 25000, `total=${r.data?.data?.total}`);
+  ok('and breaks it down by source', (r.data?.data?.bySource || []).length === 2,
+    (r.data?.data?.bySource || []).map((x) => x.source).join(', '));
+  ok('reporting planned income separately from what arrived',
+    typeof r.data?.data?.plannedIncome === 'number', `planned=${r.data?.data?.plannedIncome}`);
+
+  r = await call('POST', '/income', { amount: 100, source: 'Not A Real Source' }, covToken);
+  ok('an unknown income source is refused', r.status === 400, `-> ${r.status}`);
+  r = await call('POST', '/income', { amount: 0 }, covToken);
+  ok('a zero amount is refused', r.status === 400, `-> ${r.status}`);
+
+  r = await call('PUT', `/income/${covIncomeId}`, { amount: 21000 }, covToken);
+  ok('income can be corrected', r.data?.data?.income?.amount === 21000, `-> ${r.status}`);
+  r = await call('PUT', '/income/00000000-0000-0000-0000-000000000000', { amount: 1 }, covToken);
+  ok('editing income that is not there is a 404', r.status === 404, `-> ${r.status}`);
+  r = await call('DELETE', `/income/${covIncomeId}`, undefined, covToken);
+  ok('income can be deleted', r.status === 200, `-> ${r.status}`);
+  r = await call('DELETE', `/income/${covIncomeId}`, undefined, covToken);
+  ok('deleting it twice is a 404, not a second success', r.status === 404, `-> ${r.status}`);
+
+  /* ----------------------------- feedback --------------------------- */
+
+  r = await call('GET', '/feedback/meta', undefined, covToken);
+  ok('feedback meta lists the types', (r.data?.data?.types || []).length > 0,
+    (r.data?.data?.types || []).join(', '));
+  ok('and how to reach the developer', !!r.data?.data?.developer?.email);
+
+  r = await call('POST', '/feedback',
+    { type: 'Bug', rating: 3, message: 'A coverage note about the app.', page: '/settings' }, covToken);
+  ok('feedback is stored even with no SMTP configured', r.status === 201, `-> ${r.status}`);
+  ok('and records that it was not emailed', r.data?.data?.feedback?.emailed === false,
+    `emailed=${r.data?.data?.feedback?.emailed}`);
+
+  // The rule is 5-2000, so this is one character under it.
+  r = await call('POST', '/feedback', { type: 'Bug', message: 'four' }, covToken);
+  ok('a too-short message is refused', r.status === 400, `-> ${r.status}`);
+  r = await call('POST', '/feedback',
+    { type: 'Nonsense', message: 'A long enough message to pass the length rule.' }, covToken);
+  ok('an unknown feedback type is refused', r.status === 400, `-> ${r.status}`);
+  r = await call('POST', '/feedback',
+    { rating: 9, message: 'A long enough message to pass the length rule.' }, covToken);
+  ok('a rating outside 1-5 is refused', r.status === 400, `-> ${r.status}`);
+
+  r = await call('GET', '/feedback/mine', undefined, covToken);
+  ok('a student sees only their own feedback', (r.data?.data?.items || []).length === 1,
+    `${(r.data?.data?.items || []).length} items`);
+
+  /* ------------------------------ reports --------------------------- */
+
+  await call('POST', '/expenses',
+    { amount: 400, category: 'Mess/Food', description: 'Coverage lunch' }, covToken);
+  await call('POST', '/expenses',
+    { amount: 150, category: 'Travel', description: 'Coverage rickshaw' }, covToken);
+
+  r = await call('GET', '/reports/monthly', undefined, covToken);
+  ok('the monthly report loads', r.status === 200, `-> ${r.status}`);
+  ok('totals add up to what was spent', r.data?.data?.totals?.spent === 550,
+    `spent=${r.data?.data?.totals?.spent}`);
+  ok('the biggest category is the biggest one',
+    r.data?.data?.highestCategory?.category === 'Mess/Food', r.data?.data?.highestCategory?.category);
+  ok('the biggest single expense is named', r.data?.data?.biggestExpense?.amount === 400,
+    `${r.data?.data?.biggestExpense?.amount}`);
+  ok('last month is there to compare against',
+    typeof r.data?.data?.comparison?.previousSpent === 'number', r.data?.data?.comparison?.previousLabel);
+  ok('the transaction count matches', r.data?.data?.totals?.transactionCount === 2,
+    `${r.data?.data?.totals?.transactionCount}`);
+
+  // A CSV is not JSON, so the helper hands it back as raw bytes.
+  r = await call('GET', '/reports/export?format=csv', undefined, covToken);
+  const csv = Buffer.from(r.data || []).toString('utf8');
+  ok('the CSV export names the student', csv.includes('Coverage Student'), `${csv.length} bytes`);
+  ok('and lists the transactions', csv.includes('Coverage lunch'));
+  ok('with the amounts beside them', csv.includes('400') && csv.includes('150'));
+
+  r = await call('GET', '/reports/monthly?month=99&year=2026', undefined, covToken);
+  ok('an impossible month is refused', r.status === 400, `-> ${r.status}`);
+
+  /* ----------------------------- dashboard -------------------------- */
+
+  r = await call('GET', '/dashboard/summary', undefined, covToken);
+  ok('the dashboard loads', r.status === 200, `-> ${r.status}`);
+  ok('spend matches the report', r.data?.data?.totals?.spent === 550, `${r.data?.data?.totals?.spent}`);
+  ok('income comes from what was actually logged', r.data?.data?.totals?.income === 5000,
+    `income=${r.data?.data?.totals?.income}`);
+  ok('remaining is income minus spend',
+    Math.abs(r.data?.data?.totals?.remaining - (5000 - 550)) < 0.01,
+    `${r.data?.data?.totals?.remaining}`);
+  ok('the trend covers the whole month with no gaps',
+    Array.isArray(r.data?.data?.trend) && r.data.data.trend.length >= 28,
+    `${r.data?.data?.trend?.length} days`);
+  ok('every category spent on is in the breakdown',
+    (r.data?.data?.categoryBreakdown || []).length === 2,
+    (r.data?.data?.categoryBreakdown || []).map((c) => c.category).join(', '));
+  ok('recent expenses are listed', (r.data?.data?.recentExpenses || []).length === 2);
+  ok('and it says whether the AI is configured',
+    typeof r.data?.data?.aiConfigured === 'boolean', `${r.data?.data?.aiConfigured}`);
+
+  await call('DELETE', '/profile', { password: 'coverpass123' }, covToken);
 
   section('PROFILE & SETTINGS');
   r = await call('GET', '/profile/categories', undefined, token);

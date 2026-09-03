@@ -20,6 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const { getPool, closePool } = require('./pool');
+const { migrationUrl } = require('./databaseUrl');
 
 const MIGRATIONS_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'database', 'migrations');
 
@@ -104,6 +105,13 @@ const tableNames = async () => {
 };
 
 if (require.main === module) {
+  // Run from the command line, migrations take the direct connection when the
+  // host publishes one. Inside the app the existing pool is reused instead:
+  // opening a second one on a serverless instance to apply nothing would cost
+  // a connection on every cold start.
+  const direct = migrationUrl();
+  if (direct) process.env.DATABASE_URL = direct;
+
   migrate()
     .then(async (applied) => {
       const tables = await tableNames();

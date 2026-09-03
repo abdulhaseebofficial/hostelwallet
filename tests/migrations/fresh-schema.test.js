@@ -42,15 +42,41 @@ const SCHEMA = 'migration_smoke_test';
     const tables = rows.map((r) => r.table_name);
     console.log('  tables created: ' + tables.length + ' -> ' + tables.join(', '));
 
-    const expected = ['budgets', 'chat_messages', 'expenses', 'feedback',
-      'goal_contributions', 'goals', 'income', 'notifications',
-      'refresh_tokens', 'users'];
+    const expected = ['budgets', 'chat_messages', 'debt_payments', 'debts',
+      'expenses', 'feedback', 'goal_contributions', 'goals', 'income',
+      'notifications', 'refresh_tokens', 'users'];
     const missing = expected.filter((t) => !tables.includes(t));
     if (missing.length) {
       console.log('  FAIL missing: ' + missing.join(', '));
       failed = true;
     } else {
       console.log('  ok: a fresh database gets the complete schema');
+    }
+
+    // Constraints, not just tables. A migration whose "does this already
+    // exist?" guard is not schema-aware will find the copy in public, decide
+    // there is nothing to do, and create a table here with none of its rules -
+    // silently, because the tables all still appear.
+    const { rows: cons } = await client.query(
+      `SELECT c.conname FROM pg_constraint c
+         JOIN pg_class t  ON t.oid = c.conrelid
+         JOIN pg_namespace n ON n.oid = t.relnamespace
+        WHERE n.nspname = $1`,
+      [SCHEMA]
+    );
+    const names = cons.map((r) => r.conname);
+    const expectedConstraints = [
+      'debts_id_user_key',
+      'debt_payments_debt_owner_fkey',
+      'debts_status_matches_balance',
+      'debts_settled_at_matches_status',
+    ];
+    const missingConstraints = expectedConstraints.filter((c) => !names.includes(c));
+    if (missingConstraints.length) {
+      console.log('  FAIL missing constraints: ' + missingConstraints.join(', '));
+      failed = true;
+    } else {
+      console.log('  ok: and every constraint that protects it');
     }
 
     // Running them a second time into the same schema must not error.

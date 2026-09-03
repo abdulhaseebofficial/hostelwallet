@@ -35,9 +35,23 @@ const toApi = (row, omit = []) => {
 const toApiList = (rows, omit = []) => rows.map((row) => toApi(row, omit));
 
 /**
+ * A bare column name: letters, digits and underscores, not starting with a
+ * digit. Values are always parameterised, but the column NAME is concatenated
+ * into the statement, so it is the one position here that could carry SQL.
+ */
+const IDENTIFIER = /^[a-z_][a-z0-9_]*$/i;
+
+/**
  * Builds `SET a = $1, b = $2` from an object of column -> value, skipping
  * undefined so a partial update only touches what was actually sent. Returns
  * the fragment, the values, and the next free placeholder number.
+ *
+ * Every caller today passes a literal object with hard-coded column names, so
+ * no request data reaches the key position. The check below is what keeps that
+ * true: `buildSet(req.body)` would otherwise put user input straight into the
+ * statement, and it is a plausible shortcut for someone adding the next
+ * endpoint. Throwing here turns that mistake into an immediate, obvious
+ * failure rather than an injection.
  */
 const buildSet = (patch, startAt = 1) => {
   const fragments = [];
@@ -45,6 +59,9 @@ const buildSet = (patch, startAt = 1) => {
   let n = startAt;
   for (const [column, value] of Object.entries(patch)) {
     if (value === undefined) continue;
+    if (!IDENTIFIER.test(column)) {
+      throw new Error(`buildSet: "${column}" is not a column name. Pass literal columns, never request data.`);
+    }
     fragments.push(`${column} = $${n}`);
     values.push(value);
     n += 1;

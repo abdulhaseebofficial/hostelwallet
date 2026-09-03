@@ -542,8 +542,10 @@ telling you one of the three required variables above is not set.
 - Root `backend`, build `npm install`, start `npm start`
 - Set every variable from `apps/api/.env.example`
 - Set `CLIENT_URL` to the deployed frontend origin (comma-separate several)
-- `NODE_ENV=production` — this switches the refresh cookie to
-  `secure: true; sameSite: none` so it survives the cross-site hop
+- `NODE_ENV=production` - this makes the refresh cookie `secure: true`
+- `COOKIE_SAMESITE=none` - **only** for this split layout, so the cookie
+  survives the cross-site hop. It is weaker against CSRF than the default
+  `lax`, which is why the single-origin layout above does not set it
 
 **Database → Neon (or any Postgres)**
 - On Vercel, `vercel integration add neon` provisions one and sets

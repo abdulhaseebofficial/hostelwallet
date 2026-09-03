@@ -41,14 +41,39 @@ const verifyRefreshToken = (token) =>
  */
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
+/**
+ * How cross-site the refresh cookie is allowed to be.
+ *
+ * `lax` is the default because the deployment this repo describes serves the
+ * SPA and the API from one origin: vercel.json routes /api/* to the backend
+ * service and /* to the frontend, and the client calls the relative path /api
+ * (apps/web/src/shared/api/client.js). A cookie on a same-site request is sent
+ * under `lax` whatever the method, so login, refresh and logout all work - and
+ * `lax` is the setting that actually withholds the cookie from a cross-site
+ * POST, which is the CSRF case `none` gives away.
+ *
+ * `none` remains available because README still documents a split deployment
+ * (SPA on Vercel, API on Render) where the cookie really must cross sites.
+ * That is now an explicit choice rather than something every production deploy
+ * inherits: set COOKIE_SAMESITE=none, and only with HTTPS, since browsers
+ * reject SameSite=None without Secure.
+ */
+const SAMESITE_VALUES = ['lax', 'strict', 'none'];
+
+const sameSitePolicy = () => {
+  const configured = String(process.env.COOKIE_SAMESITE || '').trim().toLowerCase();
+  if (SAMESITE_VALUES.includes(configured)) return configured;
+  return 'lax';
+};
+
 /** Cookie options shared by login / refresh / logout so they always match. */
 const refreshCookieOptions = () => {
   const prod = isProduction();
   return {
-    httpOnly: true,
+    httpOnly: true, // JavaScript can never read it, so XSS cannot steal the session
     secure: prod, // HTTPS only outside local development
-    sameSite: prod ? 'none' : 'lax', // 'none' lets Vercel talk to Render
-    path: '/api/auth',
+    sameSite: sameSitePolicy(),
+    path: '/api/auth', // sent only to the routes that rotate it
     maxAge: REFRESH_MS,
   };
 };

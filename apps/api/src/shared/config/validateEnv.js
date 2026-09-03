@@ -62,6 +62,29 @@ const validateEnv = () => {
     errors.push(DATABASE_URL_MISSING);
   }
 
+  // A typo here fails silently and in the wrong direction - the cookie either
+  // stops being sent or quietly becomes cross-site - so say so at boot.
+  const sameSite = process.env.COOKIE_SAMESITE;
+  if (sameSite !== undefined) {
+    const value = String(sameSite).trim().toLowerCase();
+    if (!['lax', 'strict', 'none'].includes(value)) {
+      warnings.push(
+        `COOKIE_SAMESITE is "${sameSite}", which is not lax, strict or none. Falling back to lax.`
+      );
+    } else if (value === 'none' && !isProduction()) {
+      // Browsers discard SameSite=None without Secure, and Secure is off in
+      // development - so this combination logs everyone out on every refresh.
+      warnings.push(
+        'COOKIE_SAMESITE=none needs Secure, which is off in development, so the browser will drop the refresh cookie.'
+      );
+    } else if (value === 'none') {
+      warnings.push(
+        'COOKIE_SAMESITE=none sends the refresh cookie on cross-site requests. ' +
+          'Only a split deployment (SPA and API on different sites) needs it; on a single origin use lax.'
+      );
+    }
+  }
+
   if (isProduction()) {
     if (!process.env.NODE_ENV) {
       warnings.push('NODE_ENV is not set; treating this process as production.');
