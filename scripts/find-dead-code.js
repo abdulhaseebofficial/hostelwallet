@@ -52,6 +52,8 @@ const EXPECTED_UNREACHABLE = {
   'apps/web/tailwind.config.js': 'Tailwind loads it by name',
   'apps/web/postcss.config.js': 'PostCSS loads it by name',
   'packages/contracts/index.js': "required as '@hostelwallet/contracts', not by path",
+  'packages/contracts/validation.js':
+    "imported as '@hostelwallet/contracts/validation' by both apps, not by path",
 };
 
 /** Exported on purpose, even though nothing calls them yet. */

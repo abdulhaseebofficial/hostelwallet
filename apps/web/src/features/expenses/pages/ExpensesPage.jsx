@@ -13,6 +13,7 @@ import useAsync from '../../../shared/hooks/useAsync';
 import useDebounce from '../../../shared/hooks/useDebounce';
 import useCategories from '../../../shared/hooks/useCategories';
 import useMutation from '../../../shared/hooks/useMutation';
+import useQuickAdd from '../../../shared/hooks/useQuickAdd';
 import { useAuth } from '../../auth';
 import expenseService from '../api/expensesApi';
 import { formatMoney } from '../../../shared/utils/format';
@@ -32,6 +33,10 @@ const INITIAL_FILTERS = {
 export default function Expenses() {
   const { currency } = useAuth();
   const { categories } = useCategories();
+  // The shell owns the add-an-expense dialog. Using it here rather than a
+  // second copy is what lets the button honestly advertise the N shortcut:
+  // the key and the click now run the same function.
+  const { open: openQuickAdd, canCreate } = useQuickAdd();
 
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [formOpen, setFormOpen] = useState(false);
@@ -79,11 +84,6 @@ export default function Expenses() {
       },
     });
 
-  const openNew = () => {
-    setEditing(null);
-    setFormOpen(true);
-  };
-
   const openEdit = (expense) => {
     setEditing(expense);
     setFormOpen(true);
@@ -116,9 +116,11 @@ export default function Expenses() {
         }
       >
         {/* The tab bar's raised button already covers this on a phone. */}
-        <Button icon={Plus} onClick={openNew} className="hidden sm:inline-flex">
-          Add expense
-        </Button>
+        {canCreate && (
+          <Button icon={Plus} shortcut="N" onClick={openQuickAdd} className="hidden sm:inline-flex">
+            Add expense
+          </Button>
+        )}
       </PageHeader>
 
       <ExpenseFilters
@@ -152,7 +154,7 @@ export default function Expenses() {
             message="Add your first expense and this page fills up fast."
             actionLabel="Add expense"
             actionIcon={Plus}
-            onAction={openNew}
+            onAction={openQuickAdd}
           />
         )
       ) : (

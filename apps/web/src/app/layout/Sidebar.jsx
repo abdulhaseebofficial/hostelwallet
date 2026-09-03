@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { FileBarChart, HandCoins, LayoutDashboard, PieChart, Receipt, Settings, Sparkles, Target, Wallet, X } from 'lucide-react';
 import { cn } from '../../shared/utils/format';
@@ -54,22 +55,35 @@ function NavItems({ onNavigate }) {
  * screen only has to be added to NAV_ITEMS once.
  */
 export default function Sidebar({ open, onClose }) {
+  /*
+   * While the drawer is open the page behind it must not scroll: on a phone,
+   * dragging the overlay otherwise moves the page underneath and the student
+   * closes the menu to find themselves somewhere else. The previous value is
+   * restored rather than assumed to be '', so this cannot fight anything else
+   * that manages scrolling.
+   */
+  useEffect(() => {
+    if (!open) return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
   return (
     <>
-      {/* Desktop */}
-      <aside className="hidden w-60 shrink-0 border-r border-slate-200 bg-canvas-card px-3 py-4 lg:block dark:border-slate-800 dark:bg-canvas-darkCard">
-        <div className="sticky top-4">
-          <NavItems />
-
-          {/* Shortcuts are worthless if nobody knows they exist. */}
-          <p className="mt-6 px-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-            Press{' '}
-            <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-sans text-[11px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              N
-            </kbd>{' '}
-            anywhere to log an expense.
-          </p>
-        </div>
+      {/*
+        Desktop rail. `h-full` inside the shell's fixed-height row is what keeps
+        it still while the page moves: the rail is exactly as tall as the
+        viewport and never taller, so there is nothing for the page scroll to
+        move. `sticky top-4` used to do this job approximately - the rail slid
+        upward until it caught, which looked like a bug on short pages.
+        overflow-y-auto is the escape hatch for a viewport shorter than the nav
+        list, so a small laptop still reaches Settings.
+      */}
+      <aside className="hidden w-60 shrink-0 overflow-y-auto border-r border-slate-200 bg-canvas-card px-3 py-4 lg:block lg:h-full dark:border-slate-800 dark:bg-canvas-darkCard">
+        <NavItems />
       </aside>
 
       {/* Mobile drawer */}

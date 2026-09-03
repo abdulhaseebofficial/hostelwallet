@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowDownRight,
@@ -12,7 +12,7 @@ import {
 import Card, { CardHeader } from '../../../shared/components/ui/Card';
 import Button from '../../../shared/components/ui/Button';
 import PageHeader from '../../../shared/components/ui/PageHeader';
-import Modal from '../../../shared/components/ui/Modal';
+import useQuickAdd from '../../../shared/hooks/useQuickAdd';
 import { SkeletonStats, SkeletonCard } from '../../../shared/components/ui/Skeleton';
 import StatCard from '../../../shared/components/StatCard';
 import RecentTransactions from '../components/RecentTransactions';
@@ -22,35 +22,22 @@ import { BudgetRow } from '../../budgets';
 import CategoryPieChart from '../../../shared/components/charts/CategoryPieChart';
 import TrendChart from '../../../shared/components/charts/TrendChart';
 import { TipCard } from '../../advisor';
-import { ExpenseForm } from '../../expenses';
 import EmptyState from '../../../shared/components/ui/EmptyState';
 import useAsync from '../../../shared/hooks/useAsync';
-import useCategories from '../../../shared/hooks/useCategories';
-import useMutation from '../../../shared/hooks/useMutation';
 import { useAuth } from '../../auth';
 import dashboardService from '../api/dashboardApi';
-import { expensesApi as expenseService } from '../../expenses';
 import { formatChange, formatMoney } from '../../../shared/utils/format';
 
 export default function Dashboard() {
   const { user, currency } = useAuth();
   const navigate = useNavigate();
-  const { categories } = useCategories();
 
-  const [addOpen, setAddOpen] = useState(false);
-  const { saving, run } = useMutation();
+  // Adding an expense is the shell's dialog, reached through the same opener
+  // the N shortcut uses - so this page no longer carries a second copy of it.
+  const { open: openQuickAdd, canCreate } = useQuickAdd();
 
   const load = useCallback(() => dashboardService.summary(), []);
-  const { data, loading, error, reload } = useAsync(load, []);
-
-  const addExpense = (values) =>
-    run(() => expenseService.create(values), {
-      success: 'Expense added',
-      onDone: () => {
-        setAddOpen(false);
-        reload();
-      },
-    });
+  const { data, loading, error } = useAsync(load, []);
 
   if (loading && !data) {
     return (
@@ -90,9 +77,11 @@ export default function Dashboard() {
       >
         {/* Hidden on phones: the raised button in the tab bar does this job,
             and two buttons for one action just costs a screenful of space. */}
-        <Button icon={Plus} onClick={() => setAddOpen(true)} className="hidden sm:inline-flex">
-          Add expense
-        </Button>
+        {canCreate && (
+          <Button icon={Plus} shortcut="N" onClick={openQuickAdd} className="hidden sm:inline-flex">
+            Add expense
+          </Button>
+        )}
       </PageHeader>
 
       {/* Headline numbers. Two across on a phone: full-width tiles turned four
@@ -177,7 +166,7 @@ export default function Dashboard() {
 
       {/* Lists */}
       <section className="grid gap-5 lg:grid-cols-2">
-        <RecentTransactions expenses={recentExpenses} currency={currency} onAdd={() => setAddOpen(true)} />
+        <RecentTransactions expenses={recentExpenses} currency={currency} onAdd={openQuickAdd} />
 
         <div className="space-y-5">
           <GoalsPreview goals={goals} currency={currency} onCreate={() => navigate('/goals')} />
@@ -209,15 +198,6 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add an expense" size="md">
-        <ExpenseForm
-          categories={categories}
-          currency={currency}
-          onSubmit={addExpense}
-          onCancel={() => setAddOpen(false)}
-          submitting={saving}
-        />
-      </Modal>
     </div>
   );
 }

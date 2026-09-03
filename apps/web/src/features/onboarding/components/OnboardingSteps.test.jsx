@@ -62,6 +62,67 @@ describe('MoneyStep', () => {
   });
 });
 
+describe('MoneyStep: the order of the two money fields', () => {
+  /*
+   * Monthly income comes first and currency second, on purpose. The income is
+   * the figure everything else in the app is sized against, and the currency is
+   * a setting attached to it - asking for the unit before the amount makes a
+   * student answer a question about a number they have not been asked for yet.
+   *
+   * These read the rendered DOM rather than the source, so they hold whichever
+   * way the markup is written.
+   */
+  const fieldOrder = (container) =>
+    Array.from(container.querySelectorAll('input, select')).map((el) => el.tagName);
+
+  it('puts monthly income before currency on screen', () => {
+    const { container } = render(<MoneyStep form={form} onChange={() => {}} />);
+
+    const income = screen.getByLabelText(/monthly pocket money/i);
+    const currency = screen.getByLabelText(/currency/i);
+
+    // DOCUMENT_POSITION_FOLLOWING: currency comes after income in the document.
+    expect(income.compareDocumentPosition(currency) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(fieldOrder(container)[0]).toBe('INPUT');
+  });
+
+  it('gives them the same order for the keyboard', async () => {
+    render(<MoneyStep form={form} onChange={() => {}} />);
+    const income = screen.getByLabelText(/monthly pocket money/i);
+    const currency = screen.getByLabelText(/currency/i);
+
+    income.focus();
+    expect(document.activeElement).toBe(income);
+    await userEvent.tab();
+    expect(document.activeElement).toBe(currency);
+  });
+
+  it('neither field carries a tabIndex that would reorder them', () => {
+    render(<MoneyStep form={form} onChange={() => {}} />);
+    expect(screen.getByLabelText(/monthly pocket money/i)).not.toHaveAttribute('tabindex');
+    expect(screen.getByLabelText(/currency/i)).not.toHaveAttribute('tabindex');
+  });
+
+  it('reports each field under its own name, with the values not swapped', async () => {
+    const onChange = vi.fn();
+    render(<MoneyStep form={form} onChange={onChange} />);
+
+    await userEvent.type(screen.getByLabelText(/monthly pocket money/i), '5');
+    expect(onChange).toHaveBeenLastCalledWith({ monthlyIncome: '5' });
+
+    onChange.mockClear();
+    await userEvent.selectOptions(screen.getByLabelText(/currency/i), 'INR');
+    expect(onChange).toHaveBeenLastCalledWith({ currency: 'INR' });
+  });
+
+  it('loads existing values into the right fields', () => {
+    render(<MoneyStep form={{ ...form, monthlyIncome: '25000', currency: 'AED' }} onChange={() => {}} />);
+
+    expect(screen.getByLabelText(/monthly pocket money/i)).toHaveValue(25000);
+    expect(screen.getByLabelText(/currency/i)).toHaveValue('AED');
+  });
+});
+
 describe('PlaceStep', () => {
   it('is honest that it is optional', () => {
     render(<PlaceStep form={form} onChange={() => {}} />);

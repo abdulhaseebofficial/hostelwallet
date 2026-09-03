@@ -1,6 +1,7 @@
 import Modal from '../../../shared/components/ui/Modal';
 import Button from '../../../shared/components/ui/Button';
 import PasswordInput from '../../../shared/components/ui/PasswordInput';
+import PasswordChecklist from '../../../shared/components/ui/PasswordChecklist';
 
 /** Changing the password signs every other device out. */
 export default function ChangePasswordModal({ open, onClose, form, onSubmit }) {
@@ -15,13 +16,18 @@ export default function ChangePasswordModal({ open, onClose, form, onSubmit }) {
           error={errors.currentPassword && errors.currentPassword.message}
           {...form.register('currentPassword')}
         />
-        <PasswordInput
-          label="New password"
-          autoComplete="new-password"
-          hint="At least 8 characters, with a letter and a number"
-          error={errors.newPassword && errors.newPassword.message}
-          {...form.register('newPassword')}
-        />
+        <div className="space-y-2">
+          <PasswordInput
+            label="New password"
+            autoComplete="new-password"
+            error={errors.newPassword && errors.newPassword.message}
+            {...form.register('newPassword')}
+          />
+          {/* The hint here used to read "at least 8 characters, with a letter
+              and a number", which stopped being true when the policy tightened.
+              The checklist reads the policy itself, so it cannot go stale. */}
+          <PasswordChecklist value={form.watch('newPassword') || ''} />
+        </div>
         <PasswordInput
           label="Confirm new password"
           autoComplete="new-password"

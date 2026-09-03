@@ -1,9 +1,9 @@
 const { body } = require('express-validator');
-const { password, CURRENCY_CODES } = require('../../shared/validation/rules');
+const { name, password, CURRENCY_CODES } = require('../../shared/validation/rules');
 
 const profileValidators = {
   update: [
-    body('name').optional().trim().notEmpty().withMessage('Name cannot be empty').isLength({ max: 60 }),
+    name().optional(),
     body('monthlyIncome').optional().isFloat({ min: 0 }).withMessage('Income cannot be negative').toFloat(),
     body('currency').optional().isIn(CURRENCY_CODES).withMessage('Unsupported currency'),
     body('university').optional().trim().isLength({ max: 100 }),

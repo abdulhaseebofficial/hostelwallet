@@ -1,0 +1,70 @@
+{
+  "_comment": "Rules the API enforces and the web app previews. Data, not code, for the reason given in index.js: the API requires CommonJS and the web app is bundled as ESM, and JSON is the one thing both read natively. Each side builds its own validator from these values, so the rule is written once even though it runs twice. Patterns are regex SOURCE strings; every one needs the 'u' flag.",
+  "name": {
+    "maxLength": 60,
+    "pattern": "^\\p{L}(?:[\\p{L}\\p{M}'’ -]*\\p{L})?$",
+    "patternComment": "A name starts and ends with a letter. In between it may also carry combining marks (Devanagari, Arabic and Vietnamese all need them), spaces, hyphens and apostrophes - straight or curly, because phone keyboards produce the curly one. \\p{L} covers every script, so this accepts محمد, Владимир and José as readily as it accepts Ali. It rejects digits, @, <, /, emoji and anything else that is not part of a human name.",
+    "messages": {
+      "required": "What should we call you?",
+      "pattern": "Name can only contain letters, spaces, hyphens, and apostrophes.",
+      "tooLong": "That name is too long"
+    }
+  },
+  "email": {
+    "maxLength": 254,
+    "maxLocalLength": 64,
+    "pattern": "^[^\\s@]+@[^\\s@.]+(?:\\.[^\\s@.]+)+$",
+    "patternComment": "Deliberately permissive about the local part and strict about the shape: exactly one @, something on each side, at least one dot in the domain, and no whitespace anywhere. Tighter patterns are how valid addresses get rejected - plus-addressing, apostrophes and long TLDs are all legitimate. Real deliverability is proved by sending mail, not by a regex.",
+    "messages": {
+      "required": "Email is required",
+      "pattern": "Enter a valid email address, like you@university.edu",
+      "tooLong": "That email address is too long"
+    }
+  },
+  "password": {
+    "minLength": 8,
+    "maxLength": 72,
+    "maxLengthComment": "bcrypt silently ignores everything past 72 bytes, so accepting more would let a student believe in a strength the hash never sees.",
+    "requirements": [
+      {
+        "key": "length",
+        "label": "At least 8 characters",
+        "pattern": "^.{8,}$"
+      },
+      {
+        "key": "uppercase",
+        "label": "One uppercase letter",
+        "pattern": "\\p{Lu}"
+      },
+      {
+        "key": "lowercase",
+        "label": "One lowercase letter",
+        "pattern": "\\p{Ll}"
+      },
+      {
+        "key": "number",
+        "label": "One number",
+        "pattern": "\\p{Nd}"
+      },
+      {
+        "key": "special",
+        "label": "One special character",
+        "pattern": "[^\\p{L}\\p{Nd}]"
+      },
+      {
+        "key": "noEdgeSpace",
+        "label": "No spaces at the start or end",
+        "pattern": "^(?!\\s)(?!.*\\s$).+$"
+      }
+    ],
+    "requirementsComment": "Unicode classes rather than [A-Z]/[a-z]/[0-9], so a password written in another script is judged by the same rules. 'special' is anything that is not a letter or a digit, which includes a space in the middle - deliberately, because a passphrase is a good password. noEdgeSpace ends in .+ rather than .*, so an empty box shows nothing ticked: a green mark against a password nobody has typed reads as progress that has not happened.",
+    "messages": {
+      "required": "Password is required",
+      "tooLong": "Password must be 72 characters or fewer",
+      "mismatch": "Passwords do not match"
+    }
+  },
+  "terms": {
+    "message": "Please accept the terms to create your account"
+  }
+}

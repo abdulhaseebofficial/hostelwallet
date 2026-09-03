@@ -6,7 +6,9 @@
   "main": "index.js",
   "exports": {
     ".": "./index.js",
-    "./vocabulary.json": "./vocabulary.json"
+    "./vocabulary.json": "./vocabulary.json",
+    "./validation": "./validation.js",
+    "./validation.json": "./validation.json"
   },
   "license": "MIT"
 }

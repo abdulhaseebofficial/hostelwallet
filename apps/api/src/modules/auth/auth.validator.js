@@ -1,30 +1,42 @@
 const { body, param } = require('express-validator');
-const { password, CURRENCY_CODES } = require('../../shared/validation/rules');
+const {
+  name,
+  email,
+  password,
+  confirmPassword,
+  accepted,
+  CURRENCY_CODES,
+} = require('../../shared/validation/rules');
+const { TERMS_MESSAGE } = require('@hostelwallet/contracts/validation');
 
 const authValidators = {
   register: [
-    body('name').trim().notEmpty().withMessage('Name is required').isLength({ max: 60 }),
-    body('email').trim().isEmail().withMessage('Enter a valid email').normalizeEmail(),
+    name(),
+    email(),
     password(),
-    body('confirmPassword')
-      .custom((value, { req }) => value === undefined || value === req.body.password)
-      .withMessage('Passwords do not match'),
+    confirmPassword(),
+    accepted('acceptTerms', TERMS_MESSAGE),
     body('monthlyIncome').optional().isFloat({ min: 0 }).toFloat(),
     body('currency').optional().isIn(CURRENCY_CODES).withMessage('Unsupported currency'),
   ],
 
+  // Login checks the shape of the address but never the password policy: the
+  // rules can tighten over time, and an existing password that no longer meets
+  // them must still open the account it belongs to. Only a NEW password is
+  // held to the current policy.
   login: [
-    body('email').trim().isEmail().withMessage('Enter a valid email').normalizeEmail(),
+    email(),
     body('password').notEmpty().withMessage('Password is required'),
   ],
 
-  forgotPassword: [body('email').trim().isEmail().withMessage('Enter a valid email').normalizeEmail()],
+  forgotPassword: [email()],
 
   resetPassword: [param('token').isLength({ min: 20 }).withMessage('Invalid reset link'), password()],
 
   changePassword: [
     body('currentPassword').notEmpty().withMessage('Enter your current password'),
     password('newPassword'),
+    confirmPassword('confirmPassword', 'newPassword'),
   ],
 };
 

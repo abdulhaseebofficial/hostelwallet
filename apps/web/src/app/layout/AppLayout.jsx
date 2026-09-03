@@ -1,17 +1,19 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import Navbar from './Navbar';
 import Sidebar, { MOBILE_NAV_ITEMS } from './Sidebar';
 import Footer from './Footer';
 import Modal from '../../shared/components/ui/Modal';
-import ExpenseForm from '../../features/expenses/components/ExpenseForm';
+import { ExpenseForm } from '../../features/expenses';
 import { FeedbackModal } from '../../features/feedback';
 import useCategories from '../../shared/hooks/useCategories';
 import useMutation from '../../shared/hooks/useMutation';
 import { notifyDataChanged } from '../../shared/hooks/useAsync';
 import { useAuth } from '../../features/auth/AuthContext';
-import expenseService from '../../features/expenses/api/expensesApi';
+import { expensesApi as expenseService } from '../../features/expenses';
+import { QuickAddProvider } from '../../shared/hooks/useQuickAdd';
+import useShortcutKey from '../../shared/hooks/useShortcutKey';
 import { cn } from '../../shared/utils/format';
 
 /**
@@ -52,42 +54,36 @@ export default function AppLayout() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
+  const openQuickAdd = useCallback(() => setQuickAddOpen(true), []);
   const closeQuickAdd = useCallback(() => setQuickAddOpen(false), []);
   const openFeedback = useCallback(() => setFeedbackOpen(true), []);
   const closeFeedback = useCallback(() => setFeedbackOpen(false), []);
 
-  // "N" for a new expense, from anywhere - but never while the student is
-  // typing into a field, or the letter would vanish into a dialog.
-  useEffect(() => {
-    const onKeyDown = (event) => {
-      if (event.key !== 'n' && event.key !== 'N') return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
+  // "N" logs an expense from anywhere it could not have meant something else.
+  // Every guard lives in the hook, where it can be tested on its own.
+  useShortcutKey('n', openQuickAdd);
 
-      const el = document.activeElement;
-      const tag = el ? el.tagName : '';
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el && el.isContentEditable)) return;
-      if (document.querySelector('[role="dialog"]')) return;
-
-      event.preventDefault();
-      setQuickAddOpen(true);
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
-
+  /*
+   * On desktop the shell is exactly one viewport tall and hides its own
+   * overflow, so the only thing that scrolls is <main>. That is what holds the
+   * sidebar still, and it is why there is never a second scrollbar. Below lg
+   * the shell goes back to growing with its content and the page scrolls
+   * normally, which is what a phone expects - and what the fixed bottom tab bar
+   * is positioned against.
+   */
   return (
-    <div className="flex min-h-full flex-col bg-canvas-light dark:bg-canvas-dark">
+    <QuickAddProvider open={openQuickAdd}>
+      <div className="flex min-h-full flex-col bg-canvas-light lg:h-full lg:min-h-0 lg:overflow-hidden dark:bg-canvas-dark">
       <a href="#main-content" className="hw-skip-link">
         Skip to main content
       </a>
 
       <Navbar onOpenMenu={() => setMenuOpen(true)} onOpenFeedback={openFeedback} />
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 lg:min-h-0 lg:overflow-hidden">
         <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
 
-        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
+        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 lg:h-full lg:overflow-y-auto">
           {/* pb-28 leaves room for the mobile tab bar and its raised button */}
           <div className="mx-auto w-full max-w-6xl px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-10">
             <Outlet />
@@ -112,7 +108,7 @@ export default function AppLayout() {
             {/* -mt-6 lifts it out of the bar so it reads as the primary action. */}
             <button
               type="button"
-              onClick={() => setQuickAddOpen(true)}
+              onClick={openQuickAdd}
               aria-label="Add an expense"
               className="hw-fab -mt-6 mb-1.5"
             >
@@ -138,7 +134,8 @@ export default function AppLayout() {
 
       {/* One instance for the whole shell, opened from the navbar or the footer. */}
       <FeedbackModal open={feedbackOpen} onClose={closeFeedback} />
-    </div>
+      </div>
+    </QuickAddProvider>
   );
 }
 

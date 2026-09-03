@@ -13,28 +13,31 @@ import AppearanceCard from '../components/AppearanceCard';
 import CategoriesCard from '../components/CategoriesCard';
 import SecurityCard from '../components/SecurityCard';
 import ChangePasswordModal from '../components/ChangePasswordModal';
+import {
+  nameSchema,
+  passwordSchema as sharedPasswordSchema,
+  PASSWORD_MISMATCH,
+} from '../../../shared/validation/rules';
 import DeleteAccountModal from '../components/DeleteAccountModal';
 
 const profileSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(60),
+  // The same rule the API applies, so editing a profile cannot save a name
+  // that signing up would have refused.
+  name: nameSchema,
   monthlyIncome: z.coerce.number({ invalid_type_error: 'Enter a number' }).min(0, 'Cannot be negative'),
   currency: z.string().min(1),
   university: z.string().max(100).optional(),
   hostelName: z.string().max(100).optional(),
 });
 
-const passwordSchema = z
+const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Enter your current password'),
-    newPassword: z
-      .string()
-      .min(8, 'At least 8 characters')
-      .regex(/[a-zA-Z]/, 'Include at least one letter')
-      .regex(/[0-9]/, 'Include at least one number'),
+    newPassword: sharedPasswordSchema,
     confirmPassword: z.string().min(1, 'Confirm the new password'),
   })
   .refine((values) => values.newPassword === values.confirmPassword, {
-    message: 'Passwords do not match',
+    message: PASSWORD_MISMATCH,
     path: ['confirmPassword'],
   });
 
@@ -72,7 +75,7 @@ export default function Settings() {
   });
 
   const passwordForm = useForm({
-    resolver: zodResolver(passwordSchema),
+    resolver: zodResolver(changePasswordSchema),
     defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
   });
 

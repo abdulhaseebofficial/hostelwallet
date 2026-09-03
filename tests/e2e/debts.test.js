@@ -16,8 +16,8 @@ const { ok, section, call, report, requireApi, bailIfRateLimited } = require('./
   await requireApi();
 
   const email = `debts-${Date.now()}@example.com`;
-  let r = await call('POST', '/auth/register', {
-    name: 'Debt Student', email, password: 'debtpass123', confirmPassword: 'debtpass123',
+  let r = await call('POST', '/auth/register', { acceptTerms: true,
+    name: 'Debt Student', email, password: 'DebtPass123!', confirmPassword: 'DebtPass123!',
   });
   bailIfRateLimited(r);
   const token = r.data?.data?.accessToken;
@@ -221,9 +221,9 @@ const { ok, section, call, report, requireApi, bailIfRateLimited } = require('./
 
   section('ONE STUDENT MUST NOT TOUCH ANOTHER’S');
 
-  const other = await call('POST', '/auth/register', {
+  const other = await call('POST', '/auth/register', { acceptTerms: true,
     name: 'Other Student', email: `other-${Date.now()}@example.com`,
-    password: 'otherpass123', confirmPassword: 'otherpass123',
+    password: 'OtherPass123!', confirmPassword: 'OtherPass123!',
   });
   const otherToken = other.data?.data?.accessToken;
 
@@ -313,9 +313,9 @@ const { ok, section, call, report, requireApi, bailIfRateLimited } = require('./
   ok('its ledger went with it', r.status === 404, `-> ${r.status}`);
 
   section('CLEAN UP');
-  r = await call('DELETE', '/profile', { password: 'debtpass123' }, token);
+  r = await call('DELETE', '/profile', { password: 'DebtPass123!' }, token);
   ok('the test account is removed', r.status === 200, `-> ${r.status}`);
-  r = await call('DELETE', '/profile', { password: 'otherpass123' }, otherToken);
+  r = await call('DELETE', '/profile', { password: 'OtherPass123!' }, otherToken);
   ok('and so is the second one', r.status === 200, `-> ${r.status}`);
 
   report('UDHAAR');

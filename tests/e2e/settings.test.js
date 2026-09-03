@@ -11,7 +11,7 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
 
   // A throwaway account carries every test, destructive ones included.
   const email = `settings${Date.now()}@example.com`;
-  let r = await call('POST', '/auth/register', { name: 'Settings QA', email, password: 'testpass123', confirmPassword: 'testpass123' });
+  let r = await call('POST', '/auth/register', { acceptTerms: true, name: 'Settings QA', email, password: 'TestPass123!', confirmPassword: 'TestPass123!' });
   bailIfRateLimited(r);
   let token = r.data?.data?.accessToken;
   ok('set up a throwaway account', r.status === 201 && !!token, email);
@@ -112,15 +112,15 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   ok('the export does NOT contain the password hash', !/\$2[aby]\$/.test(dumpStr), 'no bcrypt hash leaked');
 
   section('Change password');
-  r = await call('PUT', '/auth/change-password', { currentPassword: 'wrong-one', newPassword: 'newpass456' }, token);
+  r = await call('PUT', '/auth/change-password', { currentPassword: 'wrong-one', newPassword: 'NewPass456!' }, token);
   ok('a wrong current password is rejected', r.status === 401 || r.status === 400, `-> ${r.status}`);
-  r = await call('PUT', '/auth/change-password', { currentPassword: 'testpass123', newPassword: 'short' }, token);
+  r = await call('PUT', '/auth/change-password', { currentPassword: 'TestPass123!', newPassword: 'short' }, token);
   ok('a weak new password is rejected', r.status === 400, `-> ${r.status}`);
   // Captured before the change: changing the password revokes every session and
   // then issues a fresh one, so the jar moves on to a valid cookie immediately.
   // Replaying the captured one is the only way to prove the old one is dead.
   const cookieBefore = currentCookie();
-  r = await call('PUT', '/auth/change-password', { currentPassword: 'testpass123', newPassword: 'newpass456' }, token);
+  r = await call('PUT', '/auth/change-password', { currentPassword: 'TestPass123!', newPassword: 'NewPass456!' }, token);
   ok('a valid change succeeds', r.status === 200, `-> ${r.status}`);
 
   r = await call('POST', '/auth/refresh', undefined, undefined, { cookie: cookieBefore });
@@ -134,9 +134,9 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   r = await call('GET', '/auth/me', undefined, token);
   ok('the old access token lasts out its window (by design)', r.status === 200, `-> ${r.status}`);
 
-  r = await call('POST', '/auth/login', { email, password: 'testpass123' });
+  r = await call('POST', '/auth/login', { email, password: 'TestPass123!' });
   ok('the old password stops working', r.status === 401, `-> ${r.status}`);
-  r = await call('POST', '/auth/login', { email, password: 'newpass456' });
+  r = await call('POST', '/auth/login', { email, password: 'NewPass456!' });
   ok('the new password works', r.status === 200, `-> ${r.status}`);
   const freshToken = r.data?.data?.accessToken;
 
@@ -145,9 +145,9 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   ok('a wrong password will not delete the account', r.status === 401 || r.status === 400, `-> ${r.status}`);
   r = await call('GET', '/auth/me', undefined, freshToken);
   ok('the account is still there after the failed attempt', r.status === 200, `-> ${r.status}`);
-  r = await call('DELETE', '/profile', { password: 'newpass456' }, freshToken);
+  r = await call('DELETE', '/profile', { password: 'NewPass456!' }, freshToken);
   ok('the right password deletes the account', r.status === 200, `-> ${r.status}`);
-  r = await call('POST', '/auth/login', { email, password: 'newpass456' });
+  r = await call('POST', '/auth/login', { email, password: 'NewPass456!' });
   // 429 is the auth rate limiter, which this suite trips by design after many
   // login attempts. Either way the sign-in did not succeed, which is the point.
   ok('the deleted account can no longer sign in', r.status === 401 || r.status === 429,

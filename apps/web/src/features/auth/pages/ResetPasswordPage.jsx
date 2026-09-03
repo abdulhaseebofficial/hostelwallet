@@ -10,18 +10,18 @@ import Button from '../../../shared/components/ui/Button';
 import authService from '../api/authApi';
 import { useAuth } from '../AuthContext';
 import { getErrorMessage } from '../../../shared/api/client';
+import PasswordChecklist from '../../../shared/components/ui/PasswordChecklist';
+import { passwordSchema, PASSWORD_MISMATCH } from '../../../shared/validation/rules';
 
+// The same rules as sign-up, from the same place, so a reset cannot set a
+// password the sign-up form would have refused.
 const schema = z
   .object({
-    password: z
-      .string()
-      .min(8, 'At least 8 characters')
-      .regex(/[a-zA-Z]/, 'Include at least one letter')
-      .regex(/[0-9]/, 'Include at least one number'),
+    password: passwordSchema,
     confirmPassword: z.string().min(1, 'Confirm your password'),
   })
   .refine((values) => values.password === values.confirmPassword, {
-    message: 'Passwords do not match',
+    message: PASSWORD_MISMATCH,
     path: ['confirmPassword'],
   });
 
@@ -33,6 +33,7 @@ export default function ResetPassword() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(schema), defaultValues: { password: '', confirmPassword: '' } });
 
@@ -68,6 +69,7 @@ export default function ResetPassword() {
           error={errors.password && errors.password.message}
           {...register('password')}
         />
+        <PasswordChecklist value={watch('password') || ''} />
 
         <PasswordInput
           label="Confirm new password"

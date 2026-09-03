@@ -27,6 +27,18 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    /*
+     * @hostelwallet/contracts is CommonJS, because the API requires it. It is
+     * also a workspace package, so it resolves to a path inside the repo rather
+     * than into node_modules - and Rollup only applies its CommonJS interop to
+     * node_modules by default. Without this, `vite build` fails on the shared
+     * validation module with "default is not exported", while vitest and the
+     * dev server both handle it. Naming the package here is what keeps one
+     * implementation of the name, email and password rules instead of two.
+     */
+    commonjsOptions: {
+      include: [/packages[\/]contracts/, /node_modules/],
+    },
     rollupOptions: {
       output: {
         // Split the two heaviest libraries out of the main bundle.

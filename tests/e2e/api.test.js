@@ -272,9 +272,9 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
 
   // A fresh account, so nothing else has already raised these alerts.
   const evEmail = `events-${Date.now()}@example.com`;
-  r = await call('POST', '/auth/register', {
+  r = await call('POST', '/auth/register', { acceptTerms: true,
     name: 'Events Student', email: evEmail,
-    password: 'eventspass123', confirmPassword: 'eventspass123',
+    password: 'EventsPass123!', confirmPassword: 'EventsPass123!',
   });
   const evToken = r.data?.data?.accessToken;
   ok('a fresh account for the event checks', r.status === 201, `-> ${r.status}`);
@@ -352,7 +352,7 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   ok('the expense that triggered all this is intact',
     r.status === 200 && r.data?.data?.expense?.amount === 500, `-> ${r.status}`);
 
-  await call('DELETE', '/profile', { password: 'eventspass123' }, evToken);
+  await call('DELETE', '/profile', { password: 'EventsPass123!' }, evToken);
 
   section('FEEDBACK');
   r = await call('POST', '/feedback', { type: 'Bug', rating: 4, message: 'QA automated check of the feedback route.', page: '/dashboard' }, token);
@@ -367,9 +367,9 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   // A private account, so these assertions are about what this student did and
   // not about whatever the demo data happens to contain.
   const covEmail = `coverage-${Date.now()}@example.com`;
-  r = await call('POST', '/auth/register', {
+  r = await call('POST', '/auth/register', { acceptTerms: true,
     name: 'Coverage Student', email: covEmail,
-    password: 'coverpass123', confirmPassword: 'coverpass123',
+    password: 'CoverPass123!', confirmPassword: 'CoverPass123!',
   });
   const covToken = r.data?.data?.accessToken;
   ok('a private account for the coverage checks', r.status === 201, `-> ${r.status}`);
@@ -481,7 +481,7 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   ok('and it says whether the AI is configured',
     typeof r.data?.data?.aiConfigured === 'boolean', `${r.data?.data?.aiConfigured}`);
 
-  await call('DELETE', '/profile', { password: 'coverpass123' }, covToken);
+  await call('DELETE', '/profile', { password: 'CoverPass123!' }, covToken);
 
   section('PROFILE & SETTINGS');
   r = await call('GET', '/profile/categories', undefined, token);
@@ -495,14 +495,114 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   r = await call('GET', '/profile/export', undefined, token);
   ok('export all data', r.status === 200, `-> ${r.status}`);
 
+  section('SIGN-UP RULES - the server is the one that decides');
+
+  /*
+   * The sign-up form applies the same rules from @hostelwallet/contracts, but a
+   * form is a convenience. These go straight at the API with the form bypassed,
+   * which is what an attacker - or a stale browser tab - would do.
+   */
+  // Anything that actually gets created is remembered and removed at the end
+  // of the section, so a suite about validation does not leave a trail of
+  // accounts behind it.
+  const created = [];
+  const signup = async (overrides) => {
+    const password = overrides.password === undefined ? 'TestPass123!' : overrides.password;
+    const response = await call('POST', '/auth/register', {
+      acceptTerms: true,
+      name: 'Valid Name',
+      email: `rules-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
+      password,
+      confirmPassword: password,
+      ...overrides,
+    });
+    const issued = response.data?.data?.accessToken;
+    if (issued) created.push({ token: issued, password });
+    return response;
+  };
+
+  for (const [label, name] of [
+    ['digits', 'Ali123'],
+    ['an email address', 'ali@example.com'],
+    ['script content', '<script>alert(1)</script>'],
+    ['only spaces', '   '],
+    ['an emoji', 'Ali \u{1F600}'],
+    ['an underscore', 'Ali_Khan'],
+  ]) {
+    r = await signup({ name });
+    ok(`a name with ${label} is refused`, r.status === 400, `-> ${r.status}`);
+  }
+
+  for (const [label, name] of [
+    ['a plain name', 'Ali'],
+    ['spaces', 'Abdul Haseeb'],
+    ['a hyphen', 'Anne-Marie'],
+    ['an apostrophe', "O'Brien"],
+    ['non-Latin script', 'محمد علی'],
+    ['an accent', 'José'],
+  ]) {
+    r = await signup({ name });
+    ok(`a name with ${label} is accepted`, r.status === 201, `-> ${r.status}`);
+  }
+
+  r = await signup({ name: '  Abdul   Haseeb  ' });
+  ok('a name is trimmed and its spaces collapsed', r.data?.data?.user?.name === 'Abdul Haseeb',
+    JSON.stringify(r.data?.data?.user?.name));
+
+  for (const [label, email] of [
+    ['two @ signs', 'a@@b.com'], ['no local part', '@b.com'], ['no domain', 'a@'],
+    ['no dot in the domain', 'a@b'], ['a space inside', 'a b@c.com'], ['nothing at all', ''],
+  ]) {
+    r = await signup({ email });
+    ok(`an email with ${label} is refused`, r.status === 400, `-> ${r.status}`);
+  }
+
+  const dotted = `first.last+tag-${Date.now()}@example.com`;
+  r = await signup({ email: `  ${dotted}  ` });
+  ok('an email is trimmed but not otherwise rewritten', r.data?.data?.user?.email === dotted,
+    r.data?.data?.user?.email);
+
+  for (const [label, password] of [
+    ['no uppercase', 'hostel1!'], ['no lowercase', 'HOSTEL1!'], ['no number', 'HostelAa!'],
+    ['no special character', 'Hostel123'], ['under 8 characters', 'Ho1!'],
+    ['a leading space', ' Hostel1!'], ['a trailing space', 'Hostel1! '],
+  ]) {
+    r = await signup({ password, confirmPassword: password });
+    ok(`a password with ${label} is refused`, r.status === 400, `-> ${r.status}`);
+  }
+
+  r = await signup({ password: 'Hostel1!', confirmPassword: 'Hostel2!' });
+  ok('a mismatched confirmation is refused', r.status === 400, `-> ${r.status}`);
+
+  r = await signup({ acceptTerms: false });
+  ok('signing up without accepting the terms is refused', r.status === 400, `-> ${r.status}`);
+  r = await signup({ acceptTerms: undefined });
+  ok('and so is leaving the terms out entirely', r.status === 400, `-> ${r.status}`);
+
+  r = await signup({ password: 'Hostel1!', confirmPassword: 'Hostel1!' });
+  ok('a password meeting every rule is accepted', r.status === 201, `-> ${r.status}`);
+  ok('and the response never contains the password',
+    !JSON.stringify(r.data || {}).toLowerCase().includes('hostel1!'), 'not echoed back');
+
+  r = await call('PUT', '/profile', { name: 'Bad1' }, token);
+  ok('the same name rule applies to editing a profile', r.status === 400, `-> ${r.status}`);
+
+  let removed = 0;
+  for (const account of created) {
+    const gone = await call('DELETE', '/profile', { password: account.password }, account.token);
+    if (gone.status === 200) removed += 1;
+  }
+  ok('every account these checks created is removed again', removed === created.length,
+    `${removed} of ${created.length}`);
+
   section('AUTHORISATION — one student must not see another\'s data');
   const other = `qa${Date.now()}@example.com`;
-  r = await call('POST', '/auth/register', { name: 'QA Second', email: other, password: 'testpass123', confirmPassword: 'testpass123' }, undefined);
+  r = await call('POST', '/auth/register', { acceptTerms: true, name: 'QA Second', email: other, password: 'TestPass123!', confirmPassword: 'TestPass123!' }, undefined);
   ok('register a second account', r.status === 201, `-> ${r.status}`);
   const token2 = r.data?.data?.accessToken;
-  r = await call('POST', '/auth/register', { name: 'Dup', email: other, password: 'testpass123', confirmPassword: 'testpass123' });
+  r = await call('POST', '/auth/register', { acceptTerms: true, name: 'Dup', email: other, password: 'TestPass123!', confirmPassword: 'TestPass123!' });
   ok('a duplicate email is rejected', r.status === 400 || r.status === 409, `-> ${r.status}`);
-  r = await call('POST', '/auth/register', { name: 'Weak', email: `w${Date.now()}@example.com`, password: 'short', confirmPassword: 'short' });
+  r = await call('POST', '/auth/register', { acceptTerms: true, name: 'Weak', email: `w${Date.now()}@example.com`, password: 'short', confirmPassword: 'short' });
   ok('a weak password is rejected', r.status === 400, `-> ${r.status}`);
 
   r = await call('GET', `/expenses/${expenseId}`, undefined, token2);
