@@ -516,7 +516,7 @@ Set these in **Vercel → Settings → Environment Variables**, scoped to the
 | `JWT_ACCESS_SECRET` | `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
 | `JWT_REFRESH_SECRET` | Same command again — it must **differ** from the access secret |
 | `NODE_ENV` | `production` |
-| `CLIENT_URL` | Your deployment URL, e.g. `https://hisab-ki-kitab.vercel.app` |
+| `CLIENT_URL` | Your deployment URL, e.g. `https://your-project.vercel.app` |
 | `ANTHROPIC_API_KEY` | Optional; without it the built-in advisor answers |
 
 The API refuses to boot on a missing or weak signing key, so a deploy that
