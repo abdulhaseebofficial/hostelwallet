@@ -28,7 +28,7 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     /*
-     * @hostelwallet/contracts is CommonJS, because the API requires it. It is
+     * @hisabkikitab/contracts is CommonJS, because the API requires it. It is
      * also a workspace package, so it resolves to a path inside the repo rather
      * than into node_modules - and Rollup only applies its CommonJS interop to
      * node_modules by default. Without this, `vite build` fails on the shared

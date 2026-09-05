@@ -7,7 +7,7 @@ const {
   accepted,
   CURRENCY_CODES,
 } = require('../../shared/validation/rules');
-const { TERMS_MESSAGE } = require('@hostelwallet/contracts/validation');
+const { TERMS_MESSAGE } = require('@hisabkikitab/contracts/validation');
 
 const authValidators = {
   register: [
@@ -27,6 +27,17 @@ const authValidators = {
   login: [
     email(),
     body('password').notEmpty().withMessage('Password is required'),
+  ],
+
+  // Shape only. Whether the token is genuine is Google's signature to answer,
+  // not a regex - see infrastructure/auth/google.js.
+  google: [
+    body('idToken')
+      .isString()
+      .withMessage('Missing Google credential')
+      .bail()
+      .isLength({ min: 20, max: 8192 })
+      .withMessage('Missing Google credential'),
   ],
 
   forgotPassword: [email()],

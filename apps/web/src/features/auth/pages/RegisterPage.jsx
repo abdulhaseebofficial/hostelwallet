@@ -10,6 +10,9 @@ import PasswordInput from '../../../shared/components/ui/PasswordInput';
 import PasswordChecklist from '../../../shared/components/ui/PasswordChecklist';
 import Button from '../../../shared/components/ui/Button';
 import { useAuth } from '../AuthContext';
+import GoogleSignInButton from '../components/GoogleSignInButton';
+import useAsync from '../../../shared/hooks/useAsync';
+import authService from '../api/authApi';
 import { getErrorMessage, getFieldErrors } from '../../../shared/api/client';
 import {
   nameSchema,
@@ -24,7 +27,7 @@ import {
  *
  * This form used to carry its own copy - "at least 8 characters, a letter and a
  * number" - which was already looser than what the server accepted. Now both
- * sides call the same functions from @hostelwallet/contracts, so the checklist
+ * sides call the same functions from @hisabkikitab/contracts, so the checklist
  * a student reads cannot promise something the server will refuse.
  */
 const schema = z
@@ -54,8 +57,19 @@ const schema = z
   });
 
 export default function Register() {
-  const { register: signUp } = useAuth();
+  const { register: signUp, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  const { data: config } = useAsync(() => authService.config(), []);
+
+  const onGoogle = async (idToken) => {
+    try {
+      await loginWithGoogle(idToken);
+      navigate('/onboarding', { replace: true });
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
 
   const {
     register,
@@ -72,6 +86,7 @@ export default function Register() {
   });
 
   const password = watch('password');
+  const acceptedTerms = watch('acceptTerms');
 
   const onSubmit = async (values) => {
     try {
@@ -100,6 +115,29 @@ export default function Register() {
         </>
       }
     >
+      {config && config.google && config.google.enabled && (
+        <>
+          {/*
+            Google is held shut until the terms below are accepted.
+
+            Signing up with Google skips the form, and with it the checkbox - so
+            without this, one way in asks for consent and the other quietly does
+            not. Rather than restating the terms in small print next to the
+            button and calling that agreement, the same tick governs both doors.
+          */}
+          <GoogleSignInButton
+            config={config.google}
+            onCredential={onGoogle}
+            disabled={isSubmitting || !acceptedTerms}
+          />
+          {!acceptedTerms && (
+            <p className="-mt-1 mb-4 text-center text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+              Accept the terms below to continue with Google.
+            </p>
+          )}
+        </>
+      )}
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <Input
           label="Full name"

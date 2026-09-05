@@ -56,9 +56,9 @@ jobs:
       postgres:
         image: postgres:17
         env:
-          POSTGRES_USER: hostelwallet
-          POSTGRES_PASSWORD: hostelwallet
-          POSTGRES_DB: hostelwallet_test
+          POSTGRES_USER: hisab-ki-kitab
+          POSTGRES_PASSWORD: hisab-ki-kitab
+          POSTGRES_DB: hisabkikitab_test
         ports: ['5432:5432']
         options: >-
           --health-cmd pg_isready
@@ -67,7 +67,7 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql://hostelwallet:hostelwallet@localhost:5432/hostelwallet_test
+      DATABASE_URL: postgresql://hisab-ki-kitab:hisab-ki-kitab@localhost:5432/hisabkikitab_test
       NODE_ENV: development
       # Not secrets: this database exists for the length of one job.
       JWT_ACCESS_SECRET: ci-access-secret-long-enough-to-pass-validation-000000

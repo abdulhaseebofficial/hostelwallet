@@ -69,7 +69,7 @@ export default function Onboarding() {
 
       const data = await onboardingApi.complete(payload);
       updateUser(data.user);
-      toast.success('All set. Welcome to HostelWallet!');
+      toast.success('All set. Welcome to Hisab Ki Kitab!');
       navigate('/dashboard', { replace: true });
     } catch (error) {
       toast.error(getErrorMessage(error));

@@ -22,7 +22,7 @@
  *    visible labels (legend with values) - identity is never colour alone.
  */
 
-import vocabulary from '@hostelwallet/contracts/vocabulary.json';
+import vocabulary from '@hisabkikitab/contracts/vocabulary.json';
 
 const {
   PAYMENT_METHODS,
@@ -62,7 +62,7 @@ if (import.meta.env.DEV) {
   const extra = CATEGORY_NAMES.filter((name) => !CATEGORY_VOCABULARY.includes(name));
   if (missing.length || extra.length) {
     console.warn(
-      '[constants] the category presentation table has drifted from @hostelwallet/contracts',
+      '[constants] the category presentation table has drifted from @hisabkikitab/contracts',
       { missing, extra }
     );
   }

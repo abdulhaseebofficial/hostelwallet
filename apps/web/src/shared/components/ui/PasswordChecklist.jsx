@@ -9,7 +9,7 @@ import { cn } from '../../utils/format';
  * telling them what to change, so they guess. This lists every requirement up
  * front and ticks them off, which turns a rejection into a checklist.
  *
- * The requirements come from @hostelwallet/contracts, the same list the API
+ * The requirements come from @hisabkikitab/contracts, the same list the API
  * enforces, so this can never promise something the server will refuse.
  *
  * Met and unmet are never distinguished by colour alone: each row carries an

@@ -6,7 +6,7 @@
  * something to work with straight away. Amounts and descriptions are sized for
  * a university hostel in Pakistan.
  *
- *   email:    demo@hostelwallet.app
+ *   email:    demo@hisabkikitab.app
  *   password: demo1234
  */
 
@@ -19,7 +19,7 @@ const incomeRepo = require('../../apps/api/src/modules/income/income.repository'
 const goalsRepo = require('../../apps/api/src/modules/goals/goals.repository');
 const budgetsRepo = require('../../apps/api/src/modules/budgets/budgets.repository');
 
-const DEMO_EMAIL = 'demo@hostelwallet.app';
+const DEMO_EMAIL = 'demo@hisabkikitab.app';
 
 // [category, minAmount, maxAmount, howManyPerMonth, sampleDescriptions]
 const PATTERN = [

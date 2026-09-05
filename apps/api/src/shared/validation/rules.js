@@ -13,7 +13,7 @@ const {
   normalizeEmail,
   checkPassword,
   PASSWORD_MESSAGES,
-} = require('@hostelwallet/contracts/validation');
+} = require('@hisabkikitab/contracts/validation');
 const { CURRENCIES } = require('../constants');
 
 const CURRENCY_CODES = CURRENCIES.map((c) => c.code);
@@ -30,7 +30,7 @@ const idParam = (name) => param(name).isUUID().withMessage('Invalid id');
  * script tag is rejected outright rather than quietly stripped and saved as
  * something the student did not type.
  *
- * The rule itself lives in @hostelwallet/contracts so the sign-up form can
+ * The rule itself lives in @hisabkikitab/contracts so the sign-up form can
  * apply the identical test before submitting. This side is still the one that
  * decides.
  */

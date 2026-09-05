@@ -8,6 +8,24 @@ const authService = {
     return data.data.user;
   },
 
+  /** What the sign-in screen needs before it renders anything. */
+  async config() {
+    const { data } = await api.get('/auth/config');
+    return data.data;
+  },
+
+  /**
+   * Exchanges a Google ID token for a Hisab Ki Kitab session.
+   *
+   * The token is not inspected here. It is opaque to the browser and only
+   * means anything once the server has checked Google's signature on it.
+   */
+  async google(idToken) {
+    const { data } = await api.post('/auth/google', { idToken });
+    setAccessToken(data.data.accessToken);
+    return data.data;
+  },
+
   async login(payload) {
     const { data } = await api.post('/auth/login', payload);
     setAccessToken(data.data.accessToken);

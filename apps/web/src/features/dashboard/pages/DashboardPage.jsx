@@ -183,7 +183,7 @@ export default function Dashboard() {
               <EmptyState
                 icon={PieIcon}
                 title="No budgets set"
-                message="Set a limit per category and HostelWallet will warn you before you blow it."
+                message="Set a limit per category and Hisab Ki Kitab will warn you before you blow it."
                 actionLabel="Set budgets"
                 onAction={() => navigate('/budget')}
               />

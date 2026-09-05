@@ -1,4 +1,4 @@
-# HostelWallet
+# Hisab Ki Kitab
 
 **Smart financial manager for university hostel students.**
 
@@ -15,7 +15,7 @@ Built as a full-stack MERN application with an AI advisor powered by the Claude 
 A hostel student in Pakistan gets a small, fixed amount of pocket money each month. It
 disappears into dozens of tiny transactions that nobody writes down, and by the 20th
 the money is gone with no idea where it went. Generic budgeting apps assume a salary,
-rent, and investments. HostelWallet assumes Rs 25,000 a month, a mess bill, and a
+rent, and investments. Hisab Ki Kitab assumes Rs 25,000 a month, a mess bill, and a
 dhaba outside the gate that never closes.
 
 ---
@@ -178,8 +178,8 @@ reason.
 ### 1. Install
 
 ```bash
-git clone <your-repo-url> hostelwallet
-cd hostelwallet
+git clone <your-repo-url> hisab-ki-kitab
+cd hisab-ki-kitab
 npm install              # one install for every workspace
 ```
 
@@ -247,7 +247,7 @@ This creates a demo student with two months of realistic hostel spending, three
 goals and a full set of budgets:
 
 ```
-email:    demo@hostelwallet.app
+email:    demo@hisabkikitab.app
 password: demo1234
 ```
 
@@ -456,7 +456,7 @@ of the day is cached in memory per user per day.
 
 The system prompt, abbreviated:
 
-> You are HostelWallet, a warm and practical money coach for a university student
+> You are Hisab Ki Kitab, a warm and practical money coach for a university student
 > living in a hostel. […] Be specific and numeric — refer to their real categories
 > and real amounts, never generic filler like "make a budget". Every tip must be
 > something they could do this week without a job, a credit card, or investing
@@ -516,7 +516,7 @@ Set these in **Vercel → Settings → Environment Variables**, scoped to the
 | `JWT_ACCESS_SECRET` | `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
 | `JWT_REFRESH_SECRET` | Same command again — it must **differ** from the access secret |
 | `NODE_ENV` | `production` |
-| `CLIENT_URL` | Your deployment URL, e.g. `https://hostelwallet.vercel.app` |
+| `CLIENT_URL` | Your deployment URL, e.g. `https://hisab-ki-kitab.vercel.app` |
 | `ANTHROPIC_API_KEY` | Optional; without it the built-in advisor answers |
 
 The API refuses to boot on a missing or weak signing key, so a deploy that
@@ -535,7 +535,7 @@ telling you one of the three required variables above is not set.
 **Frontend → Vercel or Netlify**
 - Build command `npm run build`, output directory `dist`, root `frontend`
 - Set `VITE_API_URL` to the deployed API URL, e.g.
-  `https://hostelwallet-api.onrender.com/api`
+  `https://hisab-ki-kitab-api.onrender.com/api`
 - Add a SPA rewrite so deep links work: `/* → /index.html`
 
 **Backend → Render or Railway**

@@ -9,6 +9,9 @@ import Input from '../../../shared/components/ui/Input';
 import PasswordInput from '../../../shared/components/ui/PasswordInput';
 import Button from '../../../shared/components/ui/Button';
 import { useAuth } from '../AuthContext';
+import GoogleSignInButton from '../components/GoogleSignInButton';
+import useAsync from '../../../shared/hooks/useAsync';
+import authService from '../api/authApi';
 import { getErrorMessage } from '../../../shared/api/client';
 
 const schema = z.object({
@@ -17,9 +20,25 @@ const schema = z.object({
 });
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Whether Google sign-in exists on this deployment is the server's answer,
+  // so the button cannot appear on an install that has not configured it.
+  const { data: config } = useAsync(() => authService.config(), []);
+
+  /** Where the student was heading before they were sent to log in. */
+  const target = location.state && location.state.from ? location.state.from.pathname : '/dashboard';
+
+  const onGoogle = async (idToken) => {
+    try {
+      const result = await loginWithGoogle(idToken);
+      navigate(result.created ? '/onboarding' : target, { replace: true });
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
 
   const {
     register,
@@ -32,7 +51,6 @@ export default function Login() {
     try {
       await login(values);
       // Send the student back to wherever they were headed before the redirect.
-      const target = location.state && location.state.from ? location.state.from.pathname : '/dashboard';
       navigate(target, { replace: true });
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -41,7 +59,7 @@ export default function Login() {
 
   /** One-tap login for the seeded demo account. */
   const fillDemo = () => {
-    setValue('email', 'demo@hostelwallet.app');
+    setValue('email', 'demo@hisabkikitab.app');
     setValue('password', 'demo1234');
     toast('Demo details filled in. Hit Log in.', { icon: '\uD83D\uDC4B' });
   };
@@ -59,6 +77,12 @@ export default function Login() {
         </>
       }
     >
+      <GoogleSignInButton
+        config={config && config.google}
+        onCredential={onGoogle}
+        disabled={isSubmitting}
+      />
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <Input
           label="Email"

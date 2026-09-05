@@ -10,6 +10,7 @@ const auth = require('./auth.service');
 const users = require('../users/users.service');
 const asyncHandler = require('../../shared/http/asyncHandler');
 const { refreshCookieOptions, REFRESH_COOKIE } = require('./auth.tokens');
+const google = require('../../infrastructure/auth/google');
 
 /** Sends the refresh token as an httpOnly cookie and returns the access token. */
 const setSession = (res, { refreshToken }) => {
@@ -32,8 +33,40 @@ const register = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: `Welcome to HostelWallet, ${session.user.name.split(' ')[0]}!`,
+    message: `Welcome to Hisab Ki Kitab, ${session.user.name.split(' ')[0]}!`,
     data: { user: session.user, accessToken: session.accessToken },
+  });
+});
+
+/** GET /api/auth/config - what the sign-in screen needs before it renders. */
+const publicConfig = asyncHandler(async (_req, res) => {
+  res.json({
+    success: true,
+    data: {
+      google: google.isConfigured() ? { enabled: true, clientId: google.clientId() } : { enabled: false },
+    },
+  });
+});
+
+/**
+ * POST /api/auth/google
+ * Signs in with a Google ID token, creating the account on first use.
+ *
+ * The response is deliberately the same shape a password login returns, and
+ * carries the same cookie: once signed in, nothing downstream knows or cares
+ * which door was used. `created` is only there so the browser can send a first
+ * timer to onboarding instead of the dashboard.
+ */
+const googleSignIn = asyncHandler(async (req, res) => {
+  const session = await auth.signInWithGoogle(req.body.idToken);
+  setSession(res, session);
+
+  res.status(session.created ? 201 : 200).json({
+    success: true,
+    message: session.created
+      ? `Welcome to Hisab Ki Kitab, ${session.user.name.split(' ')[0]}!`
+      : `Welcome back, ${session.user.name.split(' ')[0]}.`,
+    data: { user: session.user, accessToken: session.accessToken, created: session.created },
   });
 });
 
@@ -125,6 +158,8 @@ const changePassword = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  publicConfig,
+  googleSignIn,
   register,
   login,
   refresh,

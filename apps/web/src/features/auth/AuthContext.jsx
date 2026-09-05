@@ -66,6 +66,18 @@ export function AuthProvider({ children }) {
     return created;
   }, []);
 
+  /**
+   * Signs in with a Google credential, and reports whether the account is new
+   * so the caller can send a first timer to onboarding rather than a dashboard
+   * with nothing on it yet.
+   */
+  const loginWithGoogle = useCallback(async (idToken) => {
+    const result = await authService.google(idToken);
+    setUser(result.user);
+    toast.success(result.created ? 'Account created. Let us set things up.' : 'Welcome back.');
+    return result;
+  }, []);
+
   const logout = useCallback(async () => {
     await authService.logout();
     setUser(null);
@@ -96,12 +108,13 @@ export function AuthProvider({ children }) {
       needsOnboarding: Boolean(user) && !user.onboardingCompleted,
       currency: user ? user.currency : 'INR',
       login,
+      loginWithGoogle,
       register,
       logout,
       updateUser,
       refreshUser,
     }),
-    [user, loading, login, register, logout, updateUser, refreshUser]
+    [user, loading, login, loginWithGoogle, register, logout, updateUser, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

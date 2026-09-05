@@ -22,6 +22,7 @@ const sanitizeRequest = require('./shared/middleware/sanitize');
 const { notFound, errorHandler } = require('./shared/middleware/errorHandler');
 const { globalLimiter } = require('./shared/middleware/rateLimiter');
 const { safeUrl } = require('./shared/http/safeUrl');
+const googleAuth = require('./infrastructure/auth/google');
 const registerRoutes = require('./routes');
 const notificationSubscriptions = require('./modules/notifications/notifications.subscriptions');
 const {
@@ -101,7 +102,33 @@ const createApp = () => {
     process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) : isProduction() ? 1 : false
   );
 
-  app.use(helmet());
+  /*
+   * helmet's default CSP is script-src 'self', which would silently block
+   * Google's sign-in script - the button would simply never appear and the
+   * console would be the only clue.
+   *
+   * The four Google origins below are added only when Google sign-in is
+   * actually configured, so an install that does not use it keeps the tighter
+   * policy. These are exactly what Google Identity Services needs and nothing
+   * more: the script itself, the iframe it opens, the styles it injects, and
+   * the endpoint it talks to.
+   */
+  const GOOGLE_ORIGIN = 'https://accounts.google.com';
+  const googleEnabled = googleAuth.isConfigured();
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          'script-src': ["'self'", ...(googleEnabled ? [GOOGLE_ORIGIN, 'https://apis.google.com'] : [])],
+          'frame-src': ["'self'", ...(googleEnabled ? [GOOGLE_ORIGIN] : [])],
+          'connect-src': ["'self'", ...(googleEnabled ? [GOOGLE_ORIGIN] : [])],
+          'style-src': ["'self'", 'https:', "'unsafe-inline'"],
+        },
+      },
+    })
+  );
 
   // The frontend can run on a different origin, so CORS must allow credentials
   // for the httpOnly refresh cookie to travel.
@@ -155,7 +182,7 @@ const createApp = () => {
 
   app.get('/', (_req, res) => {
     res.json({
-      name: 'HostelWallet API',
+      name: 'Hisab Ki Kitab API',
       version: '1.0.0',
       docs: '/api/health for status, see README.md for the endpoint list',
     });

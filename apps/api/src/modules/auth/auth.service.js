@@ -15,9 +15,11 @@ const bcrypt = require('bcryptjs');
 
 const authRepo = require('./auth.repository');
 const users = require('../users/users.service');
+const google = require('../../infrastructure/auth/google');
 const ApiError = require('../../shared/errors/ApiError');
 const { sendMail } = require('../../infrastructure/email/mailer');
 const { isDevelopment } = require('../../shared/config/validateEnv');
+const { checkName } = require('@hisabkikitab/contracts/validation');
 const {
   signAccessToken,
   signRefreshToken,
@@ -37,7 +39,7 @@ const RESET_LINK_TTL_TEXT = '30 minutes';
  * the same amount of time and the endpoint cannot be used as an existence
  * oracle.
  */
-const DUMMY_HASH = bcrypt.hashSync('hostelwallet-timing-equaliser', 12);
+const DUMMY_HASH = bcrypt.hashSync('hisab-ki-kitab-timing-equaliser', 12);
 
 /**
  * Issues both tokens and records the refresh token's hash against the user.
@@ -55,6 +57,72 @@ const issueSession = async (user) => {
   );
 
   return { accessToken, refreshToken };
+};
+
+/* ------------------------------ google ------------------------------ */
+
+/**
+ * Signs a student in with a Google ID token, creating the account if needed.
+ *
+ * Three cases, and the middle one is the whole security question:
+ *
+ *   1. We already know this Google identity  -> sign that account in.
+ *
+ *   2. We do not, but an account exists with the same email address. This is
+ *      the interesting one, because linking them means a Google sign-in can
+ *      open an account that was created with a password. It is allowed here
+ *      ONLY because google.verify() has already refused any token whose
+ *      email_verified claim is not true - Google has confirmed the person owns
+ *      that address. Without that check this branch would be an account
+ *      takeover: put someone else's address on a Google account, sign in, take
+ *      their financial records. With it, the person proving ownership to Google
+ *      is the same person the account belongs to.
+ *
+ *   3. Neither -> a new account with no password. They can set one later
+ *      through the ordinary reset flow if they ever want to.
+ *
+ * The session issued is exactly the same session a password login issues. There
+ * is no second kind of token and no Google-specific privilege.
+ */
+const signInWithGoogle = async (idToken) => {
+  if (!google.isConfigured()) {
+    throw ApiError.badRequest('Google sign-in is not available');
+  }
+
+  const result = await google.verify(idToken);
+  if (!result.ok) {
+    // The reason names the exact claim that failed, which is useful in a log
+    // and a map of the lock to anyone probing from outside.
+    console.warn(`[auth] google sign-in refused: ${result.reason}`);
+    throw ApiError.unauthorized('Could not verify that Google account');
+  }
+
+  const { googleId, email, name } = result.profile;
+
+  let user = await users.findByGoogleId(googleId);
+  let created = false;
+
+  if (!user) {
+    const existing = await users.findByEmail(email);
+
+    if (existing) {
+      user = await users.linkGoogleId(existing._id, googleId);
+      if (!user) {
+        // linkGoogleId refuses to move an identity already attached elsewhere.
+        throw ApiError.conflict('That Google account is already linked to another login');
+      }
+    } else {
+      user = await users.createFromGoogle({
+        name: checkName(name).ok ? checkName(name).value : email.split('@')[0],
+        email,
+        googleId,
+      });
+      created = true;
+    }
+  }
+
+  const session = await issueSession(user);
+  return { user, created, ...session };
 };
 
 /* ---------------------------- registration -------------------------- */
@@ -184,7 +252,7 @@ const forgotPassword = async (email) => {
 
   await sendMail({
     to: user.email,
-    subject: 'Reset your HostelWallet password',
+    subject: 'Reset your Hisab Ki Kitab password',
     text: [
       `Hi ${user.name},`,
       '',
@@ -227,6 +295,7 @@ const changePassword = async (userId, currentPassword, newPassword) => {
 };
 
 module.exports = {
+  signInWithGoogle,
   register,
   login,
   refresh,

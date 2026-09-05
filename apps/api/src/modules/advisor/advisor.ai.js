@@ -103,7 +103,7 @@ const snapshotToText = (snapshot, currency = 'INR') => {
  * across requests.
  */
 const SYSTEM_PROMPT = [
-  'You are HostelWallet, a warm and practical money coach for a university student living in a hostel in Pakistan.',
+  'You are Hisab Ki Kitab, a warm and practical money coach for a university student living in a hostel in Pakistan.',
   '',
   'Who you are talking to: a student aged roughly 18 to 24 whose entire monthly budget is small pocket money sent',
   'from home. Their world is the hostel mess bill, chai and paratha at the canteen, samosas and rolls from the dhaba',
@@ -445,7 +445,7 @@ const fallbackChat = ({ user, snapshot, message }) => {
     ...advice.tips.map((t, i) => `${i + 1}. ${t.title} - ${t.detail}`),
   ];
   if (advice.warning) lines.push('', advice.warning);
-  lines.push('', '(The AI advisor is not configured, so this is HostelWallet built-in advice.)');
+  lines.push('', '(The AI advisor is not configured, so this is Hisab Ki Kitab built-in advice.)');
   return { reply: lines.join('\n') };
 };
 

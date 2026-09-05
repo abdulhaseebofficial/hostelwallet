@@ -3,7 +3,7 @@ import { Wallet } from 'lucide-react';
 import { cn } from '../../utils/format';
 
 /**
- * The HostelWallet logo: the wallet tile plus the wordmark.
+ * The Hisab Ki Kitab logo: the wallet tile plus the wordmark.
  *
  * It appeared three times with three slightly different tile sizes and colour
  * treatments - which is how a logo stops being a logo. `inverted` is the

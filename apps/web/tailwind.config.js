@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 
 /**
- * HostelWallet theme.
+ * Hisab Ki Kitab theme.
  *
  * The look is warm and paper-like rather than the cool blue-grey most dashboards
  * default to: a cream page, near-white cards, a terracotta accent and a serif

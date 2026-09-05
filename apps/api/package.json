@@ -1,8 +1,8 @@
 {
-  "name": "@hostelwallet/api",
+  "name": "@hisabkikitab/api",
   "version": "1.0.0",
   "private": true,
-  "description": "HostelWallet REST API \u2014 expenses, goals, budgets and AI financial advice for hostel students",
+  "description": "Hisab Ki Kitab REST API — expenses, goals, budgets and AI financial advice for hostel students",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -17,7 +17,7 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
-    "@hostelwallet/contracts": "1.0.0",
+    "@hisabkikitab/contracts": "1.0.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -25,6 +25,7 @@
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",
     "express-validator": "^7.2.0",
+    "google-auth-library": "^11.0.2",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",

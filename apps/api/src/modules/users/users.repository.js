@@ -23,7 +23,12 @@ const PRIVATE = ['password', 'reset_password_token', 'reset_password_expires', '
 const PUBLIC_COLUMNS = `
   id, name, email, monthly_income, currency, university, hostel_name,
   custom_categories, theme, onboarding_completed, token_version,
-  last_expense_reminder_at, created_at, updated_at
+  last_expense_reminder_at, created_at, updated_at,
+  -- Not the password: whether there is one. An account created through Google
+  -- has none, and the Settings screen has to offer "set a password" rather
+  -- than "change password", which needs a current one that does not exist.
+  (password IS NOT NULL) AS has_password,
+  (google_id IS NOT NULL) AS has_google
 `;
 
 /**
@@ -92,6 +97,64 @@ const create = async ({
       String(currency || 'INR').toUpperCase(),
       university || '',
       hostelName || '',
+    ]
+  );
+  return toApi(row);
+};
+
+/* ------------------------------- google ----------------------------- */
+
+/**
+ * The account this Google identity already belongs to, if any.
+ *
+ * Matched on the Google subject claim, never on the email: a person can change
+ * the email on their Google account, and `sub` is the only identifier Google
+ * promises stays put.
+ */
+const findByGoogleId = async (googleId) => {
+  const row = await queryOne(
+    `SELECT ${PUBLIC_COLUMNS} FROM users WHERE google_id = $1`,
+    [String(googleId)]
+  );
+  return toApi(row);
+};
+
+/**
+ * Attaches a Google identity to an existing account.
+ *
+ * Only ever called after Google has confirmed the person owns the address -
+ * see infrastructure/auth/google.js. The WHERE clause refuses to move an
+ * identity that is already attached somewhere else, so a second call with a
+ * different user id changes nothing rather than silently re-pointing it.
+ */
+const linkGoogleId = async (userId, googleId) => {
+  const row = await queryOne(
+    `UPDATE users SET google_id = $2, updated_at = now()
+      WHERE id = $1 AND (google_id IS NULL OR google_id = $2)
+      RETURNING ${PUBLIC_COLUMNS}`,
+    [userId, String(googleId)]
+  );
+  return toApi(row);
+};
+
+/**
+ * A new account with no password at all.
+ *
+ * Not a random unusable password: that is a lie the rest of the code would
+ * eventually believe, and it would make "does this account have a password?"
+ * unanswerable. The column is nullable and a CHECK guarantees every row is
+ * reachable by password or by Google.
+ */
+const createFromGoogle = async ({ name, email, googleId, currency = 'PKR' }) => {
+  const row = await queryOne(
+    `INSERT INTO users (name, email, google_id, currency, onboarding_completed)
+     VALUES ($1, $2, $3, $4, false)
+     RETURNING ${PUBLIC_COLUMNS}`,
+    [
+      String(name).trim(),
+      String(email).trim().toLowerCase(),
+      String(googleId),
+      String(currency).toUpperCase(),
     ]
   );
   return toApi(row);
@@ -198,6 +261,9 @@ const remove = async (userId) => {
 };
 
 module.exports = {
+  findByGoogleId,
+  linkGoogleId,
+  createFromGoogle,
   toPublicUser,
   findByEmail,
   findById,

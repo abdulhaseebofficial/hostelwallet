@@ -70,6 +70,8 @@ const SCHEMA = 'migration_smoke_test';
       'debt_payments_debt_owner_fkey',
       'debts_status_matches_balance',
       'debts_settled_at_matches_status',
+      // 0005: every account must be reachable by password or by Google.
+      'users_has_a_way_in',
     ];
     const missingConstraints = expectedConstraints.filter((c) => !names.includes(c));
     if (missingConstraints.length) {

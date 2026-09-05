@@ -49,7 +49,7 @@ const sendMail = async ({ to, subject, text, html }) => {
   }
 
   await tx.sendMail({
-    from: process.env.MAIL_FROM || 'HostelWallet <no-reply@hostelwallet.app>',
+    from: process.env.MAIL_FROM || 'Hisab Ki Kitab <no-reply@hisabkikitab.app>',
     to,
     subject,
     text,

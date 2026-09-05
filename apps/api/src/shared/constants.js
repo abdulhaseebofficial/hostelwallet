@@ -3,13 +3,13 @@
  *
  * The vocabulary the web app also needs - categories, payment methods,
  * currencies, notification and feedback types - lives in
- * @hostelwallet/contracts so the two cannot drift. It is re-exported here so
+ * @hisabkikitab/contracts so the two cannot drift. It is re-exported here so
  * nothing inside the API has to know where it came from.
  *
  * What stays is what only the API decides.
  */
 
-const contracts = require('@hostelwallet/contracts');
+const contracts = require('@hisabkikitab/contracts');
 
 const {
   PAYMENT_METHODS,

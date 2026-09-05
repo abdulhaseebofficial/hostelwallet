@@ -10,14 +10,14 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   await requireApi();
 
   section('AUTH');
-  let r = await call('POST', '/auth/login', { email: 'demo@hostelwallet.app', password: 'demo1234' });
+  let r = await call('POST', '/auth/login', { email: 'demo@hisabkikitab.app', password: 'demo1234' });
   bailIfRateLimited(r);
   ok('login with the demo account', r.status === 200 && !!r.data?.data?.accessToken, `-> ${r.status}`);
   let token = r.data?.data?.accessToken;
   const me = r.data?.data?.user;
   ok('login returns the user', !!me?.email, me?.email);
 
-  r = await call('POST', '/auth/login', { email: 'demo@hostelwallet.app', password: 'wrong-password' });
+  r = await call('POST', '/auth/login', { email: 'demo@hisabkikitab.app', password: 'wrong-password' });
   ok('wrong password is rejected', r.status === 401, `-> ${r.status}`);
 
   r = await call('POST', '/auth/login', { email: 'not-an-email', password: 'x' });
@@ -49,7 +49,7 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   ok('and the replay revoked the live session too', r.status === 401, `-> ${r.status}`);
 
   // Sign back in so the rest of the suite has a working session.
-  r = await call('POST', '/auth/login', { email: 'demo@hostelwallet.app', password: 'demo1234' });
+  r = await call('POST', '/auth/login', { email: 'demo@hisabkikitab.app', password: 'demo1234' });
   ok('signing back in works', r.status === 200, `-> ${r.status}`);
   token = r.data?.data?.accessToken;
 
@@ -495,10 +495,48 @@ const { ok, section, heading, call, report, requireApi, bailIfRateLimited, curre
   r = await call('GET', '/profile/export', undefined, token);
   ok('export all data', r.status === 200, `-> ${r.status}`);
 
+  section('GOOGLE SIGN-IN');
+
+  /*
+   * The signature check belongs to Google and cannot be exercised without a
+   * token Google signed. What is checked here is everything around it: that the
+   * feature announces itself honestly, that a forged or malformed token gets
+   * nowhere, and that failure says nothing useful to whoever is probing.
+   */
+  r = await call('GET', '/auth/config');
+  ok('the sign-in screen can ask what is available', r.status === 200, `-> ${r.status}`);
+  const googleConfig = r.data?.data?.google;
+  ok('and the answer says whether Google sign-in is on', typeof googleConfig?.enabled === 'boolean',
+    JSON.stringify(googleConfig));
+  ok('the config endpoint leaks no secret',
+    !JSON.stringify(r.data || {}).match(/secret|password|POSTGRES|JWT_/i), 'client id only');
+
+  for (const [label, body] of [
+    ['no token at all', {}],
+    ['an empty token', { idToken: '' }],
+    ['a token that is not a string', { idToken: 12345 }],
+    ['a one-character token', { idToken: 'x' }],
+  ]) {
+    r = await call('POST', '/auth/google', body);
+    ok(`google sign-in with ${label} is refused`, r.status === 400, `-> ${r.status}`);
+  }
+
+  r = await call('POST', '/auth/google', {
+    idToken: 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxIiwiZW1haWwiOiJhQGIuY28ifQ.',
+  });
+  ok('a forged alg=none Google token is refused',
+    r.status === 401 || r.status === 400, `-> ${r.status}`);
+  ok('and the refusal does not name the claim that failed',
+    !/issuer|audience|signature|verified/i.test(r.text), r.data?.message || '');
+
+  r = await call('POST', '/auth/google', { idToken: 'a'.repeat(9000) });
+  ok('an oversized token is refused', r.status === 400 || r.status === 413, `-> ${r.status}`);
+
+
   section('SIGN-UP RULES - the server is the one that decides');
 
   /*
-   * The sign-up form applies the same rules from @hostelwallet/contracts, but a
+   * The sign-up form applies the same rules from @hisabkikitab/contracts, but a
    * form is a convenience. These go straight at the API with the form bypassed,
    * which is what an attacker - or a stale browser tab - would do.
    */

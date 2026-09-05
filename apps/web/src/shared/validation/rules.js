@@ -1,7 +1,7 @@
 /**
  * The web app's side of the shared validation rules.
  *
- * The rules themselves are not here. They live in @hostelwallet/contracts and
+ * The rules themselves are not here. They live in @hisabkikitab/contracts and
  * the API applies the identical functions, so the sign-up form and the server
  * cannot disagree about whether a name, an email or a password is acceptable.
  * What this file adds is the two things only a browser needs: zod refinements
@@ -22,7 +22,7 @@ import { z } from 'zod';
  * builds under vitest and then fails `vite build`. One line of unpacking buys
  * a single shared implementation instead of a second copy of the rules.
  */
-import validation from '@hostelwallet/contracts/validation';
+import validation from '@hisabkikitab/contracts/validation';
 
 const {
   checkName,

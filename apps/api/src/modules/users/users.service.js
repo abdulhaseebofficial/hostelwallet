@@ -197,6 +197,13 @@ const revokeAllSessions = (userId) => usersRepo.revokeAllSessions(userId);
 
 const findById = (userId, options) => usersRepo.findById(userId, options);
 
+/* ------------------------------- google ----------------------------- */
+// Thin pass-throughs, like findByEmail above: auth owns the sign-in decision,
+// users owns what an account is.
+const findByGoogleId = (googleId) => usersRepo.findByGoogleId(googleId);
+const linkGoogleId = (userId, googleId) => usersRepo.linkGoogleId(userId, googleId);
+const createFromGoogle = (profile) => usersRepo.createFromGoogle(profile);
+
 
 module.exports = {
   toPublic,
@@ -216,4 +223,7 @@ module.exports = {
   findByResetToken,
   revokeAllSessions,
   findById,
+  findByGoogleId,
+  linkGoogleId,
+  createFromGoogle,
 };

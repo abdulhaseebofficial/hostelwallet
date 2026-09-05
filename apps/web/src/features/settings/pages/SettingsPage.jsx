@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -50,6 +51,7 @@ const changePasswordSchema = z
  * can be read without wading through markup.
  */
 export default function Settings() {
+  const navigate = useNavigate();
   const { user, updateUser, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const { categories, custom, add, remove } = useCategories();
@@ -132,7 +134,11 @@ export default function Settings() {
       />
 
       <SecurityCard
+        user={user}
         onChangePassword={() => setPasswordOpen(true)}
+        // A Google-only account has no current password to type, so it goes
+        // through the ordinary reset flow to add one.
+        onSetPassword={() => navigate('/forgot-password')}
         onExport={exportData}
         onDelete={() => setDeleteOpen(true)}
       />

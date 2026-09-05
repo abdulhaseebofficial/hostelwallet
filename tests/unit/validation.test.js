@@ -219,7 +219,7 @@ test('the API validator is built from these functions, not a second copy', () =>
   const source = fs.readFileSync(rulesFile, 'utf8');
 
   assert.ok(
-    source.includes("require('@hostelwallet/contracts/validation')"),
+    source.includes("require('@hisabkikitab/contracts/validation')"),
     'the API validator no longer imports the shared rules'
   );
   for (const fn of ['checkName', 'checkEmail', 'checkPassword']) {
@@ -230,5 +230,5 @@ test('the API validator is built from these functions, not a second copy', () =>
 test('the web form is built from these functions too', () => {
   const webRules = path.join(__dirname, '..', '..', 'apps', 'web', 'src', 'shared', 'validation', 'rules.js');
   const source = fs.readFileSync(webRules, 'utf8');
-  assert.ok(source.includes('@hostelwallet/contracts/validation'), 'the web rules no longer import the shared module');
+  assert.ok(source.includes('@hisabkikitab/contracts/validation'), 'the web rules no longer import the shared module');
 });
